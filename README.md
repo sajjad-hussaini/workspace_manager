@@ -6,19 +6,19 @@
 npm install
 ```
 
-## Development (hot reload ke sath)
+## Development (with hot reload)
 
 ```bash
 npm run dev
 ```
 
-Phir Chrome me:
-1. `chrome://extensions` kholo
-2. "Developer mode" ON karo (top-right)
-3. "Load unpacked" pe click karo
-4. Is project ke andar generated `dist` folder select karo
+Then open Chrome and do the following:
+1. Go to `chrome://extensions`
+2. Turn on "Developer mode" in the top-right corner
+3. Click "Load unpacked"
+4. Select the generated `dist` folder inside this project
 
-Code me koi bhi change karoge, extension khud reload ho jayega (koi manual reload nahi chahiye).
+Any code changes you make will automatically reload the extension without needing a manual reload.
 
 ## Production build
 
@@ -26,15 +26,15 @@ Code me koi bhi change karoge, extension khud reload ho jayega (koi manual reloa
 npm run build
 ```
 
-Output `dist` folder me milega — yehi folder Chrome Web Store pe upload karne ke liye zip karna hai.
+The output will be generated in the `dist` folder. This is the folder you should zip before uploading to the Chrome Web Store.
 
-## Structure
+## Project structure
 
 ```
-manifest.config.js        -> Manifest ki config (JSON ki jagah JS, dynamic values allow karta hai)
+manifest.config.js        -> Manifest configuration (JS instead of JSON, supports dynamic values)
 vite.config.js             -> Vite + CRXJS plugin setup
 src/background/index.js    -> Service worker (background script)
-src/pages/fullpage/        -> Fullpage UI (React app) - toolbar icon click par khulta hai
+src/pages/fullpage/        -> Full-page UI (React app) opened when the toolbar icon is clicked
   ├── index.html
   ├── main.jsx              -> React entry point
   ├── App.jsx                -> Main component (demo: save/list/restore tabs)
@@ -42,7 +42,13 @@ src/pages/fullpage/        -> Fullpage UI (React app) - toolbar icon click par k
 src/lib/storage.js         -> chrome.storage.sync + local fallback helper
 ```
 
-## Naya page (jaise popup) add karna ho to:
+## Adding a new page (for example, a popup)
 
-1. `src/pages/popup/` folder banao (index.html + main.jsx + App.jsx isi tarah)
-2. `manifest.config.js` me `action.default_popup: "src/pages/popup/index.html"` add karo
+1. Create a new folder such as `src/pages/popup/` with files like `index.html`, `main.jsx`, and `App.jsx`
+2. Add the following in `manifest.config.js`:
+
+```js
+action.default_popup: "src/pages/popup/index.html"
+```
+
+This will make the page open as the browser action popup.
