@@ -24,6 +24,11 @@ export default function App() {
   const [selectedByWorkspace, setSelectedByWorkspace] = useState(() => new Map());
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState("success");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [newWorkspaceOpen, setNewWorkspaceOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState(null);
   const [theme, setTheme] = useState("light");
 
   const refresh = useCallback(async () => {
@@ -64,10 +69,15 @@ export default function App() {
     return sortSessions(base, sortKey);
   }, [sessions, searchInput, sortKey]);
 
+  function showNotice(message, tone = "success") {
+    setNoticeTone(tone);
+    setNotice(message);
+  }
+
   async function handleSave() {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      setNotice("Enter a workspace name first.");
+      showNotice("Enter a workspace name first.", "error");
       return;
     }
 
@@ -76,7 +86,7 @@ export default function App() {
     try {
       const tabs = await getCurrentTabs();
       if (!tabs.length) {
-        setNotice("No valid tabs were found in this window.");
+        showNotice("No valid tabs were found in this window.", "error");
         return;
       }
 
@@ -93,7 +103,7 @@ export default function App() {
           reminderAt: reminderIso || existing.reminderAt,
           tabs: [...(existing.tabs || []), ...newTabs]
         });
-        setNotice(newTabs.length ? `${newTabs.length} link${newTabs.length === 1 ? "" : "s"} added to ${existing.title}.` : "All current links are already saved.");
+        showNotice(newTabs.length ? `${newTabs.length} link${newTabs.length === 1 ? "" : "s"} added to ${existing.title}.` : "All current links are already saved.");
       } else {
         await persistSession({
           id: `sess_${Date.now()}`,
@@ -103,12 +113,13 @@ export default function App() {
           tabs: uniqueTabs,
           createdAt: new Date().toISOString()
         });
-        setNotice(`${uniqueTabs.length} link${uniqueTabs.length === 1 ? "" : "s"} saved to your workspace.`);
+        showNotice(`${uniqueTabs.length} link${uniqueTabs.length === 1 ? "" : "s"} saved to your workspace.`);
       }
 
       setTitle("");
       setNote("");
       setReminderAt("");
+      setNewWorkspaceOpen(false);
       await refresh();
     } finally {
       setSaving(false);
@@ -238,11 +249,22 @@ export default function App() {
   }
 
   function requestDeleteSession(session) {
-    const confirmed = window.confirm(`Delete “${session.title}” and all its saved links?`);
-    if (!confirmed) return;
+    setDeleteTarget({ type: "workspace", session });
+  }
 
-    deleteSessionStorage(session.id)
-      .then(async () => {
+  function requestDeleteTab(session, tabIndex) {
+    setDeleteTarget({ type: "link", session, tabIndex });
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    const { type, session, tabIndex } = deleteTarget;
+    setDeleteTarget(null);
+
+    try {
+      if (type === "workspace") {
+        await deleteSessionStorage(session.id);
         setExpandedIds((prev) => {
           const next = new Set(prev);
           next.delete(session.id);
@@ -254,41 +276,32 @@ export default function App() {
           return next;
         });
         await refresh();
-      })
-      .catch((error) => {
-        console.error(error);
-        setNotice("Unable to delete this workspace.");
-      });
-  }
+        showNotice(`“${session.title}” deleted.`, "delete");
+        return;
+      }
 
-  function requestDeleteTab(session, tabIndex) {
-    const confirmed = window.confirm("Delete this link from the workspace?");
-    if (!confirmed) return;
+      const updatedTabs = (session.tabs || []).filter((_, index) => index !== tabIndex);
+      await persistSession({ ...session, tabs: updatedTabs });
+      setSelectedByWorkspace((prev) => {
+        const next = new Map(prev);
+        const selected = next.get(session.id);
+        if (!selected) return next;
 
-    const updatedTabs = (session.tabs || []).filter((_, index) => index !== tabIndex);
-    persistSession({ ...session, tabs: updatedTabs })
-      .then(async () => {
-        setSelectedByWorkspace((prev) => {
-          const next = new Map(prev);
-          const selected = next.get(session.id);
-          if (!selected) return next;
-
-          const shifted = new Set();
-          selected.forEach((index) => {
-            if (index < tabIndex) shifted.add(index);
-            if (index > tabIndex) shifted.add(index - 1);
-          });
-
-          if (shifted.size) next.set(session.id, shifted);
-          else next.delete(session.id);
-          return next;
+        const shifted = new Set();
+        selected.forEach((index) => {
+          if (index < tabIndex) shifted.add(index);
+          if (index > tabIndex) shifted.add(index - 1);
         });
-        await refresh();
-      })
-      .catch((error) => {
-        console.error(error);
-        setNotice("Unable to delete this link.");
+        if (shifted.size) next.set(session.id, shifted);
+        else next.delete(session.id);
+        return next;
       });
+      await refresh();
+      showNotice("Link deleted.", "delete");
+    } catch (error) {
+      console.error(error);
+      showNotice(type === "workspace" ? "Unable to delete this workspace." : "Unable to delete this link.", "error");
+    }
   }
 
   function handleExportCsv() {
@@ -312,8 +325,190 @@ export default function App() {
     await persistTheme(nextTheme);
   }
 
+  async function handleQuickSave() {
+    setSaving(true);
+    try {
+      const tabs = getUniqueTabs(await getCurrentTabs());
+      if (!tabs.length) {
+        showNotice("No valid tabs are open in this window.", "error");
+        return;
+      }
+
+     const uniqueTitle = getUniqueWorkspaceName("Current Browser", sessions);
+
+      await persistSession({
+        id: `sess_${Date.now()}`,
+        title: uniqueTitle,
+        note: "",
+        tabs,
+        createdAt: new Date().toISOString(),
+      });
+
+      showNotice(`${tabs.length} tabs saved as "${uniqueTitle}".`);
+      await refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function getUniqueWorkspaceName(baseName, sessions) {
+    const existingTitles = new Set(sessions.map((s) => s.title));
+
+    if (!existingTitles.has(baseName)) {
+      return baseName;
+    }
+
+    let counter = 1;
+    let newName = `${baseName} ${counter}`;
+    while (existingTitles.has(newName)) {
+      counter += 1;
+      newName = `${baseName} ${counter}`;
+    }
+    return newName;
+  }
+
+  function openNewWorkspaceModal() {
+    setEditingSession(null);
+    setTitle("");
+    setNote("");
+    setReminderAt("");
+    setNewWorkspaceOpen(true);
+  }
+
+  function closeWorkspaceModal() {
+    setNewWorkspaceOpen(false);
+    setEditingSession(null);
+  }
+
+  async function saveWorkspaceModal() {
+    if (!editingSession) {
+      await handleSave();
+      return;
+    }
+
+    const nextTitle = title.trim();
+    if (!nextTitle) {
+      showNotice("Enter a workspace name first.", "error");
+      return;
+    }
+
+    const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
+    await persistSession({ ...editingSession, title: nextTitle, note: note.trim(), reminderAt: reminderIso });
+    await refresh();
+    showNotice("Workspace updated.");
+    closeWorkspaceModal();
+  }
+
+  async function duplicateWorkspace(session) {
+    const copy = {
+      ...session,
+      id: `sess_${Date.now()}`,
+      title: getUniqueWorkspaceName(`${session.title} (Copy)`, sessions),
+      createdAt: new Date().toISOString()
+    };
+    await persistSession(copy);
+    await refresh();
+    showNotice(`“${session.title}” duplicated.`);
+  }
+
+  function renameWorkspace(session) {
+    setEditingSession(session);
+    setTitle(session.title || "");
+    setNote(session.note || "");
+    setReminderAt(session.reminderAt ? session.reminderAt.slice(0, 16) : "");
+    setNewWorkspaceOpen(true);
+  }
+
   return (
     <div className="workspace-manager-popup">
+      <div className="final-popup">
+        <header className="final-header">
+          <div className="final-brand"><span className="final-logo">W</span><strong>Workspace Manager</strong></div>
+          <div className="final-header-actions">
+            <button onClick={toggleTheme} type="button" aria-label="Toggle theme">{theme === "dark" ? "☀" : "☾"}</button>
+            <button onClick={openFullManager} type="button" aria-label="Open dashboard">↗</button>
+          </div>
+        </header>
+
+        <section className="current-browser">
+          <div className="current-browser-row"><strong>Current Browser</strong><span className="tab-dots">● ● ● <small>+{tabCount}</small></span></div>
+          <span>{tabCount} tabs open · Ready to save your current tabs</span>
+          <button onClick={handleQuickSave} disabled={saving} type="button">＋ {saving ? "Saving…" : "Save Current Tabs"}</button>
+        </section>
+
+        <label className="final-search"><span>⌕</span><input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search workspaces…" /></label>
+
+        <div className="final-section-heading"><span>My Workspaces</span><button onClick={openFullManager} type="button">View all →</button></div>
+        <div className="final-workspace-list">
+          {loading && <div className="final-empty">Loading workspaces…</div>}
+          {!loading && sessions.length === 0 && (
+            <div className="final-empty-state">
+              <div className="empty-bars" aria-hidden="true"><i /><i /><i /><i /></div>
+              <strong>No workspaces yet</strong>
+              <span>Save your current browser tabs and come back to them anytime.</span>
+              <button className="empty-save" onClick={handleQuickSave} disabled={saving} type="button">＋ Save Current Tabs</button>
+              <button className="empty-create" onClick={openNewWorkspaceModal} type="button">Create New Workspace</button>
+            </div>
+          )}
+          {!loading && sessions.length > 0 && filteredSessions.length === 0 && <div className="final-empty">No workspaces match your search.</div>}
+          {filteredSessions.map((session, index) => (
+            <article className={`final-workspace accent-${index % 6} ${expandedIds.has(session.id) ? "is-expanded" : ""}`} key={session.id}>
+              <span className="final-folder"><FolderIcon /></span>
+              <div className="final-workspace-copy">
+                <strong>{session.title}</strong>
+                <span>{session.tabs?.length || 0} tabs · {session.lastOpenedAt ? `Updated ${formatDate(session.lastOpenedAt)}` : `Saved ${formatDate(session.createdAt)}`}</span>
+              </div>
+              <div className="final-card-actions">
+                <button className="final-open" onClick={() => handleOpenAll(session)} type="button">Open</button>
+                <button className="final-new-window" onClick={() => toggleExpanded(session.id)} type="button" aria-label="Show workspace actions">⌄</button>
+                <button className="final-delete" onClick={() => setOpenMenuId((current) => current === session.id ? null : session.id)} type="button" aria-label="Workspace actions">⋮</button>
+              </div>
+              {openMenuId === session.id && (
+                <div className="final-menu" role="menu">
+                  <button onClick={() => { setOpenMenuId(null); renameWorkspace(session); }} type="button">✎ <span>Rename / Edit</span></button>
+                  <button onClick={() => { setOpenMenuId(null); duplicateWorkspace(session); }} type="button">▣ <span>Duplicate</span></button>
+                  <button onClick={() => { setOpenMenuId(null); exportWorkspacesToCsv([session]); showNotice("Workspace exported as CSV."); }} type="button">⇩ <span>Export CSV</span></button>
+                  <button className="is-danger" onClick={() => { setOpenMenuId(null); requestDeleteSession(session); }} type="button">♧ <span>Delete</span></button>
+                </div>
+              )}
+              {expandedIds.has(session.id) && (
+                <>
+                  <div className="final-expanded-links">
+                    {(session.tabs || []).length === 0 && <span className="final-no-links">No saved links in this workspace.</span>}
+                    {(session.tabs || []).map((tab, tabIndex) => (
+                      <div className="final-link-row" key={`${session.id}-${tabIndex}`}>
+                        <input
+                          type="checkbox"
+                          checked={(selectedByWorkspace.get(session.id) || new Set()).has(tabIndex)}
+                          onChange={(event) => toggleTabSelection(session.id, tabIndex, event.target.checked)}
+                          aria-label={`Select ${tab.title || tab.url}`}
+                        />
+                        <button className="final-link-open" onClick={() => chrome.tabs.create({ url: tab.url, active: false })} type="button">
+                          <LinkFavicon tab={tab} />
+                          <span><strong>{tab.title || tab.url}</strong><small>{tab.url}</small></span>
+                        </button>
+                        <button className="final-link-delete" onClick={() => requestDeleteTab(session, tabIndex)} type="button" aria-label="Delete link">×</button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="final-expanded-actions">
+                    <button className="is-primary" onClick={() => handleOpenAll(session)} type="button">↗ Open All</button>
+                    <button onClick={() => handleOpenNewWindow(session)} type="button">↗ New Window</button>
+                    <button onClick={() => handleOpenSelected(session)} type="button">Open Selected</button>
+                    <button onClick={() => handleOpenSelectedNewWindow(session)} type="button">Selected New Window</button>
+                    <button onClick={() => handleAddCurrentLinks(session)} type="button">＋ Add Current Links</button>
+                    <button className="is-danger" onClick={() => requestDeleteSession(session)} type="button">⌫ Delete Workspace</button>
+                  </div>
+                </>
+              )}
+            </article>
+          ))}
+        </div>
+
+        {sessions.length > 0 && <button className="final-new-workspace" onClick={openNewWorkspaceModal} type="button">＋ New Workspace</button>}
+        <footer className="final-footer"><span>{sessions.length} Workspaces</span><button onClick={openFullManager} type="button">Open Dashboard →</button></footer>
+      </div>
+
       <header className="manager-header">
         <div className="manager-title-wrap">
           <div className="manager-icon" aria-hidden="true"><FolderIcon /></div>
@@ -361,7 +556,7 @@ export default function App() {
         </button>
       </div>
 
-      {notice && <div className="manager-notice" role="status">{notice}</div>}
+      {notice && <div className={`manager-notice is-${noticeTone}`} role="status">{notice}</div>}
 
       {dueReminders.length > 0 && (
         <div className="reminder-stack">
@@ -469,6 +664,41 @@ export default function App() {
       </div>
 
       <button className="full-manager-link" onClick={openFullManager} type="button">Open full manager →</button>
+
+      {deleteTarget && (
+        <div className="confirm-backdrop" role="presentation">
+          <section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-dialog-title">
+            <h2 id="delete-dialog-title">Delete {deleteTarget.type === "workspace" ? "workspace" : "link"}?</h2>
+            <p>
+              {deleteTarget.type === "workspace"
+                ? `“${deleteTarget.session.title}” and all its saved links will be permanently removed.`
+                : "This saved link will be permanently removed from the workspace."}
+            </p>
+            <div className="confirm-actions">
+              <button className="confirm-cancel" onClick={() => setDeleteTarget(null)} type="button">Cancel</button>
+              <button className="confirm-delete" onClick={confirmDelete} type="button">Delete</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {newWorkspaceOpen && (
+        <div className="new-workspace-backdrop" role="presentation">
+          <form className="new-workspace-dialog" onSubmit={(event) => { event.preventDefault(); saveWorkspaceModal(); }}>
+            <div className="new-workspace-title-row">
+              <div><h2>{editingSession ? "Edit Workspace" : "New Workspace"}</h2><p>{editingSession ? "Update this workspace’s details." : "Save your current browser tabs in one place."}</p></div>
+              <button onClick={closeWorkspaceModal} type="button" aria-label="Close">×</button>
+            </div>
+            <label>Workspace name<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Design research" autoFocus /></label>
+            <label>Note <span>(optional)</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="What is this workspace for?" rows="3" /></label>
+            <label>Reminder <span>(optional)</span><input type="datetime-local" value={reminderAt} onChange={(event) => setReminderAt(event.target.value)} /></label>
+            <div className="new-workspace-actions">
+              <button className="new-workspace-cancel" onClick={closeWorkspaceModal} type="button">Cancel</button>
+              <button className="new-workspace-save" disabled={saving} type="submit">{saving ? "Saving…" : editingSession ? "Save Changes" : "Save Workspace"}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
