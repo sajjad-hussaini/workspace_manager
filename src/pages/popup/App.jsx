@@ -170,7 +170,7 @@ export default function App() {
 
   function getSelected(session) {
     const selected = selectedByWorkspace.get(session.id) || new Set();
-    return (session.tabs || []).map((tab, index) => ({ tab, index })).filter(({ index }) => selected.has(index) && Boolean(tab.url));
+    return (session.tabs || []).map((tab, index) => ({ tab, index })).filter(({ tab, index }) => selected.has(index) && Boolean(tab.url));
   }
 
   async function handleOpenSelected(session) {
@@ -453,14 +453,20 @@ export default function App() {
           {!loading && sessions.length > 0 && filteredSessions.length === 0 && <div className="final-empty">No workspaces match your search.</div>}
           {filteredSessions.map((session, index) => (
             <article className={`final-workspace accent-${index % 6} ${expandedIds.has(session.id) ? "is-expanded" : ""}`} key={session.id}>
-              <span className="final-folder"><FolderIcon /></span>
-              <div className="final-workspace-copy">
-                <strong>{session.title}</strong>
-                <span>{session.tabs?.length || 0} tabs · {session.lastOpenedAt ? `Updated ${formatDate(session.lastOpenedAt)}` : `Saved ${formatDate(session.createdAt)}`}</span>
-              </div>
+              <button
+                className="final-workspace-trigger"
+                onClick={() => toggleExpanded(session.id)}
+                type="button"
+                aria-expanded={expandedIds.has(session.id)}
+              >
+                <span className={`final-chevron ${expandedIds.has(session.id) ? "is-open" : ""}`} aria-hidden="true" />
+                <span className="final-folder"><FolderIcon /></span>
+                <span className="final-workspace-copy">
+                  <strong>{session.title}</strong>
+                  <span>{session.tabs?.length || 0} tabs · {session.lastOpenedAt ? `Updated ${formatDate(session.lastOpenedAt)}` : `Saved ${formatDate(session.createdAt)}`}</span>
+                </span>
+              </button>
               <div className="final-card-actions">
-                <button className="final-open" onClick={() => handleOpenAll(session)} type="button">Open</button>
-                <button className="final-new-window" onClick={() => toggleExpanded(session.id)} type="button" aria-label="Show workspace actions">⌄</button>
                 <button className="final-delete" onClick={() => setOpenMenuId((current) => current === session.id ? null : session.id)} type="button" aria-label="Workspace actions">⋮</button>
               </div>
               {openMenuId === session.id && (
