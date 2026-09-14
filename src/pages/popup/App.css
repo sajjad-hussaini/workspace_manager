@@ -574,6 +574,32 @@
   cursor: pointer;
 }
 
+.final-link-edit,
+.final-link-delete {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #7b8799;
+  cursor: pointer;
+}
+
+.final-link-edit {
+  font-size: 13px;
+}
+
+.final-link-edit:hover {
+  background: #edf1ff;
+  color: #5b45d6;
+}
+
+.final-link-delete {
+  font-size: 18px;
+}
+
 .final-expanded-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -803,6 +829,11 @@
 :root[data-theme="dark"] .final-link-open {
   background: #252d3d;
   color: #edf2ff;
+}
+
+:root[data-theme="dark"] .final-link-edit:hover {
+  background: #303653;
+  color: #c9c2ff;
 }
 
 .manager-notice.is-delete,
@@ -1664,4 +1695,9 @@
     padding: 6px 7px;
     font-size: 10px;
   }
+}
+
+.link-edit-dialog {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }

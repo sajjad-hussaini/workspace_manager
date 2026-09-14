@@ -29,6 +29,12 @@ export default function App() {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [newWorkspaceOpen, setNewWorkspaceOpen] = useState(false);
   const [editingSession, setEditingSession] = useState(null);
+  const [editingLink, setEditingLink] = useState(null);
+  const [linkTitle, setLinkTitle] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkNote, setLinkNote] = useState("");
+  const [linkTags, setLinkTags] = useState("");
+  const [linkReminderAt, setLinkReminderAt] = useState("");
   const [theme, setTheme] = useState("light");
 
   const refresh = useCallback(async () => {
@@ -54,6 +60,19 @@ export default function App() {
     const timer = setTimeout(() => setNotice(""), 2600);
     return () => clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    if (!openMenuId) return undefined;
+
+    function closeMenuOnOutsideClick(event) {
+      if (!event.target.closest(".final-card-actions, .final-menu")) {
+        setOpenMenuId(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", closeMenuOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeMenuOnOutsideClick);
+  }, [openMenuId]);
 
   const dueReminders = useMemo(() => {
     const now = Date.now();
@@ -254,6 +273,52 @@ export default function App() {
 
   function requestDeleteTab(session, tabIndex) {
     setDeleteTarget({ type: "link", session, tabIndex });
+  }
+
+  function openLinkEditor(session, tabIndex) {
+    const tab = session.tabs?.[tabIndex];
+    if (!tab) return;
+    setEditingLink({ session, tabIndex });
+    setLinkTitle(tab.title || "");
+    setLinkUrl(tab.url || "");
+    setLinkNote(tab.note || "");
+    setLinkTags(Array.isArray(tab.tags) ? tab.tags.join(", ") : tab.tags || "");
+    setLinkReminderAt(tab.reminderAt ? tab.reminderAt.slice(0, 16) : "");
+  }
+
+  function closeLinkEditor() {
+    setEditingLink(null);
+  }
+
+  async function saveLinkEditor() {
+    if (!editingLink) return;
+
+    const trimmedUrl = linkUrl.trim();
+    try {
+      new URL(trimmedUrl);
+    } catch {
+      showNotice("Enter a valid link URL.", "error");
+      return;
+    }
+
+    const { session, tabIndex } = editingLink;
+    const updatedTabs = [...(session.tabs || [])];
+    const currentTab = updatedTabs[tabIndex];
+    if (!currentTab) return;
+
+    updatedTabs[tabIndex] = {
+      ...currentTab,
+      title: linkTitle.trim(),
+      url: trimmedUrl,
+      note: linkNote.trim(),
+      tags: linkTags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      reminderAt: linkReminderAt ? new Date(linkReminderAt).toISOString() : ""
+    };
+
+    await persistSession({ ...session, tabs: updatedTabs });
+    await refresh();
+    closeLinkEditor();
+    showNotice("Link updated.");
   }
 
   async function confirmDelete() {
@@ -493,6 +558,7 @@ export default function App() {
                           <LinkFavicon tab={tab} />
                           <span><strong>{tab.title || tab.url}</strong><small>{tab.url}</small></span>
                         </button>
+                        <button className="final-link-edit" onClick={() => openLinkEditor(session, tabIndex)} type="button" aria-label="Edit link">✎</button>
                         <button className="final-link-delete" onClick={() => requestDeleteTab(session, tabIndex)} type="button" aria-label="Delete link">×</button>
                       </div>
                     ))}
@@ -672,8 +738,8 @@ export default function App() {
       <button className="full-manager-link" onClick={openFullManager} type="button">Open full manager →</button>
 
       {deleteTarget && (
-        <div className="confirm-backdrop" role="presentation">
-          <section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-dialog-title">
+        <div className="confirm-backdrop" onClick={() => setDeleteTarget(null)} role="presentation">
+          <section className="confirm-dialog" onClick={(event) => event.stopPropagation()} role="alertdialog" aria-modal="true" aria-labelledby="delete-dialog-title">
             <h2 id="delete-dialog-title">Delete {deleteTarget.type === "workspace" ? "workspace" : "link"}?</h2>
             <p>
               {deleteTarget.type === "workspace"
@@ -689,8 +755,8 @@ export default function App() {
       )}
 
       {newWorkspaceOpen && (
-        <div className="new-workspace-backdrop" role="presentation">
-          <form className="new-workspace-dialog" onSubmit={(event) => { event.preventDefault(); saveWorkspaceModal(); }}>
+        <div className="new-workspace-backdrop" onClick={closeWorkspaceModal} role="presentation">
+          <form className="new-workspace-dialog" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); saveWorkspaceModal(); }}>
             <div className="new-workspace-title-row">
               <div><h2>{editingSession ? "Edit Workspace" : "New Workspace"}</h2><p>{editingSession ? "Update this workspace’s details." : "Save your current browser tabs in one place."}</p></div>
               <button onClick={closeWorkspaceModal} type="button" aria-label="Close">×</button>
@@ -701,6 +767,26 @@ export default function App() {
             <div className="new-workspace-actions">
               <button className="new-workspace-cancel" onClick={closeWorkspaceModal} type="button">Cancel</button>
               <button className="new-workspace-save" disabled={saving} type="submit">{saving ? "Saving…" : editingSession ? "Save Changes" : "Save Workspace"}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editingLink && (
+        <div className="new-workspace-backdrop" onClick={closeLinkEditor} role="presentation">
+          <form className="new-workspace-dialog link-edit-dialog" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); saveLinkEditor(); }}>
+            <div className="new-workspace-title-row">
+              <div><h2>Edit Link</h2><p>Update this saved link's details.</p></div>
+              <button onClick={closeLinkEditor} type="button" aria-label="Close">×</button>
+            </div>
+            <label>Title<input value={linkTitle} onChange={(event) => setLinkTitle(event.target.value)} placeholder="Link title" autoFocus /></label>
+            <label>URL<input type="url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} placeholder="https://example.com" /></label>
+            <label>Notes <span>(optional)</span><textarea value={linkNote} onChange={(event) => setLinkNote(event.target.value)} placeholder="What is this link for?" rows="3" /></label>
+            <label>Tags <span>(comma separated)</span><input value={linkTags} onChange={(event) => setLinkTags(event.target.value)} placeholder="research, priority" /></label>
+            <label>Reminder <span>(optional)</span><input type="datetime-local" value={linkReminderAt} onChange={(event) => setLinkReminderAt(event.target.value)} /></label>
+            <div className="new-workspace-actions">
+              <button className="new-workspace-cancel" onClick={closeLinkEditor} type="button">Cancel</button>
+              <button className="new-workspace-save" type="submit">Save Changes</button>
             </div>
           </form>
         </div>
