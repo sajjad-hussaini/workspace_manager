@@ -54,23 +54,29 @@ function escapeCsvValue(value) {
 export function exportWorkspacesToCsv(sessions) {
   const header = [
     "Workspace Name",
+    "Workspace Tags",
     "Workspace Note",
     "Workspace Created At",
     "Workspace Last Opened At",
     "Link Title",
     "Link URL",
+    "Link Tags",
     "Link Last Opened At"
   ];
   const rows = [header];
 
   sessions.forEach((session) => {
-    const workspaceColumns = [session.title || "", session.note || "", session.createdAt || "", session.lastOpenedAt || ""];
+    const wsTags = Array.isArray(session.tags) ? session.tags.join(", ") : (session.tags || "");
+    const workspaceColumns = [session.title || "", wsTags, session.note || "", session.createdAt || "", session.lastOpenedAt || ""];
     const tabs = Array.isArray(session.tabs) ? session.tabs : [];
     if (!tabs.length) {
-      rows.push([...workspaceColumns, "", "", ""]);
+      rows.push([...workspaceColumns, "", "", "", ""]);
       return;
     }
-    tabs.forEach((tab) => rows.push([...workspaceColumns, tab.title || "", tab.url || "", tab.lastVisitedAt || ""]));
+    tabs.forEach((tab) => {
+      const tabTags = Array.isArray(tab.tags) ? tab.tags.join(", ") : (tab.tags || "");
+      rows.push([...workspaceColumns, tab.title || "", tab.url || "", tabTags, tab.lastVisitedAt || ""]);
+    });
   });
 
   const csv = "\uFEFF" + rows.map((row) => row.map(escapeCsvValue).join(",")).join("\r\n");
@@ -101,7 +107,11 @@ export function sortSessions(sessions, sortKey) {
 }
 
 export function workspaceMatchesSearch(session, term) {
-  const workspaceText = [session.title, session.note].filter(Boolean).join(" ").toLowerCase();
-  const linkText = (session.tabs || []).map((t) => `${t.title || ""} ${t.url || ""}`).join(" ").toLowerCase();
+  const tagsText = Array.isArray(session.tags) ? session.tags.join(" ") : (session.tags || "");
+  const workspaceText = [session.title, session.note, tagsText].filter(Boolean).join(" ").toLowerCase();
+  const linkText = (session.tabs || []).map((t) => {
+    const linkTags = Array.isArray(t.tags) ? t.tags.join(" ") : (t.tags || "");
+    return `${t.title || ""} ${t.url || ""} ${t.note || ""} ${linkTags}`;
+  }).join(" ").toLowerCase();
   return workspaceText.includes(term) || linkText.includes(term);
 }

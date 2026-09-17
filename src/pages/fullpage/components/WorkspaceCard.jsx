@@ -28,6 +28,13 @@ export default function WorkspaceCard({
         <span className="workspace-details">
           <span className="workspace-title">{session.title}</span>
           {session.note && <span className="workspace-note">{session.note}</span>}
+          {Array.isArray(session.tags) && session.tags.length > 0 && (
+            <span className="workspace-card-tags">
+              {session.tags.map((t, idx) => (
+                <span key={idx} className="workspace-card-tag">#{t}</span>
+              ))}
+            </span>
+          )}
           <span className="workspace-meta">
             Saved {formatDate(session.createdAt)}
             {session.lastOpenedAt && ` · Opened ${formatDate(session.lastOpenedAt)}`}

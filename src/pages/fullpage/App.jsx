@@ -21,6 +21,7 @@ export default function App() {
 
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
+  const [tags, setTags] = useState("");
   const [reminderAt, setReminderAt] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -101,15 +102,18 @@ export default function App() {
       }
 
       const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
+      const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
       const uniqueTabs = getUniqueTabs(tabs);
       const existing = sessions.find((s) => s.title?.trim().toLowerCase() === trimmedTitle.toLowerCase());
 
       if (existing) {
         const existingKeys = new Set((existing.tabs || []).map((t) => getLinkKey(t.url)));
         const newTabs = uniqueTabs.filter((t) => !existingKeys.has(getLinkKey(t.url)));
+        const mergedTags = parsedTags.length > 0 ? Array.from(new Set([...(existing.tags || []), ...parsedTags])) : (existing.tags || []);
         const updated = {
           ...existing,
           note: note.trim() || existing.note,
+          tags: mergedTags,
           reminderAt: reminderIso || existing.reminderAt,
           tabs: [...(existing.tabs || []), ...newTabs]
         };
@@ -125,6 +129,7 @@ export default function App() {
           id: `sess_${Date.now()}`,
           title: trimmedTitle,
           note: note.trim(),
+          tags: parsedTags,
           reminderAt: reminderIso,
           tabs: uniqueTabs,
           createdAt: new Date().toISOString()
@@ -136,6 +141,7 @@ export default function App() {
 
       setTitle("");
       setNote("");
+      setTags("");
       setReminderAt("");
       await refresh();
     } catch (error) {
@@ -337,6 +343,7 @@ export default function App() {
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSave()}
           />
+          <input className="input" placeholder="Tags (comma separated, optional)" value={tags} onChange={(e) => setTags(e.target.value)} />
           <input className="input" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
           <input
             className="input"

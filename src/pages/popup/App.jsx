@@ -17,6 +17,7 @@ export default function App() {
   const [tabCount, setTabCount] = useState(0);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
+  const [tags, setTags] = useState("");
   const [reminderAt, setReminderAt] = useState("");
   const [saving, setSaving] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -112,15 +113,18 @@ export default function App() {
       }
 
       const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
+      const parsedTags = tags.split(",").map((tag) => tag.trim()).filter(Boolean);
       const uniqueTabs = getUniqueTabs(tabs);
       const existing = sessions.find((session) => session.title?.trim().toLowerCase() === trimmedTitle.toLowerCase());
 
       if (existing) {
         const existingKeys = new Set((existing.tabs || []).map((tab) => getLinkKey(tab.url)));
         const newTabs = uniqueTabs.filter((tab) => !existingKeys.has(getLinkKey(tab.url)));
+        const mergedTags = parsedTags.length > 0 ? Array.from(new Set([...(existing.tags || []), ...parsedTags])) : (existing.tags || []);
         await persistSession({
           ...existing,
           note: note.trim() || existing.note,
+          tags: mergedTags,
           reminderAt: reminderIso || existing.reminderAt,
           tabs: [...(existing.tabs || []), ...newTabs]
         });
@@ -130,6 +134,7 @@ export default function App() {
           id: `sess_${Date.now()}`,
           title: trimmedTitle,
           note: note.trim(),
+          tags: parsedTags,
           reminderAt: reminderIso,
           tabs: uniqueTabs,
           createdAt: new Date().toISOString(),
@@ -140,6 +145,7 @@ export default function App() {
 
       setTitle("");
       setNote("");
+      setTags("");
       setReminderAt("");
       setNewWorkspaceOpen(false);
       await refresh();
@@ -440,6 +446,7 @@ export default function App() {
     setEditingSession(null);
     setTitle("");
     setNote("");
+    setTags("");
     setReminderAt("");
     setNewWorkspaceOpen(true);
   }
@@ -447,6 +454,10 @@ export default function App() {
   function closeWorkspaceModal() {
     setNewWorkspaceOpen(false);
     setEditingSession(null);
+    setTitle("");
+    setNote("");
+    setTags("");
+    setReminderAt("");
   }
 
   async function saveWorkspaceModal() {
@@ -462,7 +473,14 @@ export default function App() {
     }
 
     const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
-    await persistSession({ ...editingSession, title: nextTitle, note: note.trim(), reminderAt: reminderIso });
+    const parsedTags = tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+    await persistSession({
+      ...editingSession,
+      title: nextTitle,
+      note: note.trim(),
+      tags: parsedTags,
+      reminderAt: reminderIso
+    });
     await refresh();
     showNotice("Workspace updated.");
     closeWorkspaceModal();
@@ -473,6 +491,7 @@ export default function App() {
       ...session,
       id: `sess_${Date.now()}`,
       title: getUniqueWorkspaceName(`${session.title} (Copy)`, sessions),
+      tags: Array.isArray(session.tags) ? [...session.tags] : [],
       createdAt: new Date().toISOString()
     };
     await persistSession(copy);
@@ -484,6 +503,7 @@ export default function App() {
     setEditingSession(session);
     setTitle(session.title || "");
     setNote(session.note || "");
+    setTags(Array.isArray(session.tags) ? session.tags.join(", ") : session.tags || "");
     setReminderAt(session.reminderAt ? session.reminderAt.slice(0, 16) : "");
     setNewWorkspaceOpen(true);
   }
@@ -579,7 +599,14 @@ export default function App() {
                 <span className="final-folder"><FolderIcon /></span>
                 <span className="final-workspace-copy">
                   <strong>{session.title}</strong>
-                  <span>{session.tabs?.length || 0} tabs · {session.lastOpenedAt ? `Updated ${formatDate(session.lastOpenedAt)}` : `Saved ${formatDate(session.createdAt)}`}</span>
+                  <span className="final-workspace-meta">{session.tabs?.length || 0} tabs · {session.lastOpenedAt ? `Updated ${formatDate(session.lastOpenedAt)}` : `Saved ${formatDate(session.createdAt)}`}</span>
+                  {Array.isArray(session.tags) && session.tags.length > 0 && (
+                    <span className="final-workspace-tags">
+                      {session.tags.map((tag, tagIndex) => (
+                        <span key={tagIndex} className="final-workspace-tag">#{tag}</span>
+                      ))}
+                    </span>
+                  )}
                 </span>
               </button>
               <div className="final-card-actions">
@@ -664,6 +691,14 @@ export default function App() {
           placeholder="Add a short note (optional)..."
         />
 
+        <input
+          className="manager-input"
+          type="text"
+          value={tags}
+          onChange={(event) => setTags(event.target.value)}
+          placeholder="Tags (comma separated, optional)..."
+        />
+
         <div className="manager-input-row">
           <input
             className="manager-input"
@@ -730,6 +765,13 @@ export default function App() {
                 <span className="workspace-details">
                   <span className="workspace-title">{session.title}</span>
                   {session.note && <span className="workspace-note">{session.note}</span>}
+                  {Array.isArray(session.tags) && session.tags.length > 0 && (
+                    <span className="workspace-tags-row">
+                      {session.tags.map((tag, tIdx) => (
+                        <span key={tIdx} className="workspace-tag-chip">#{tag}</span>
+                      ))}
+                    </span>
+                  )}
                   <span className="workspace-meta">
                     Saved: {formatDate(session.createdAt)}
                     {session.lastOpenedAt ? ` · Last opened: ${formatDate(session.lastOpenedAt)}` : ""}
@@ -813,6 +855,7 @@ export default function App() {
               <button onClick={closeWorkspaceModal} type="button" aria-label="Close"><Icon name="close" /></button>
             </div>
             <label>Workspace name<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Design research" autoFocus /></label>
+            <label>Tags <span>(comma separated, optional)</span><input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="e.g. work, research, urgent" /></label>
             <label>Note <span>(optional)</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="What is this workspace for?" rows="3" /></label>
             <label>Reminder <span>(optional)</span><input type="datetime-local" value={reminderAt} onChange={(event) => setReminderAt(event.target.value)} /></label>
             <div className="new-workspace-actions">
