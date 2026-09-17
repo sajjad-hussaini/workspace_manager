@@ -20,7 +20,7 @@ export default function App() {
   const [reminderAt, setReminderAt] = useState("");
   const [saving, setSaving] = useState(false);
   const [searchInput, setSearchInput] = useState("");
-  const [sortKey, setSortKey] = useState("created-desc");
+  const [sortKey, setSortKey] = useState("manual");
   const [selectedByWorkspace, setSelectedByWorkspace] = useState(() => new Map());
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const [notice, setNotice] = useState("");
@@ -36,6 +36,8 @@ export default function App() {
   const [linkTags, setLinkTags] = useState("");
   const [linkReminderAt, setLinkReminderAt] = useState("");
   const [theme, setTheme] = useState("light");
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   const refresh = useCallback(async () => {
     const data = await getSessions();
@@ -130,7 +132,8 @@ export default function App() {
           note: note.trim(),
           reminderAt: reminderIso,
           tabs: uniqueTabs,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          order: sessions.length ? Math.max(...sessions.map((s) => s.order ?? 0)) + 1 : 0
         });
         showNotice(`${uniqueTabs.length} link${uniqueTabs.length === 1 ? "" : "s"} saved to your workspace.`);
       }
@@ -407,6 +410,7 @@ export default function App() {
         note: "",
         tabs,
         createdAt: new Date().toISOString(),
+        order: sessions.length ? Math.max(...sessions.map((s) => s.order ?? 0)) + 1 : 0
       });
 
       showNotice(`${tabs.length} tabs saved as "${uniqueTitle}".`);
@@ -484,40 +488,87 @@ export default function App() {
     setNewWorkspaceOpen(true);
   }
 
+  async function handleReorder(sourceId, targetId) {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+
+    const currentOrder = filteredSessions.map((s) => s.id);
+    const fromIndex = currentOrder.indexOf(sourceId);
+    const toIndex = currentOrder.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const reordered = [...currentOrder];
+    reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, sourceId);
+
+    const updated = reordered
+      .map((id, index) => {
+        const session = sessions.find((s) => s.id === id);
+        return session ? { ...session, order: index } : null;
+      })
+      .filter(Boolean);
+
+    setSessions((prev) => {
+      const map = new Map(updated.map((s) => [s.id, s]));
+      return prev.map((s) => map.get(s.id) || s);
+    });
+
+    await Promise.all(updated.map((s) => persistSession(s)));
+  }
+
   return (
     <div className="workspace-manager-popup">
       <div className="final-popup">
         <header className="final-header">
           <div className="final-brand"><span className="final-logo">W</span><strong>Workspace Manager</strong></div>
           <div className="final-header-actions">
-            <button onClick={toggleTheme} type="button" aria-label="Toggle theme">{theme === "dark" ? "☀" : "☾"}</button>
-            <button onClick={openFullManager} type="button" aria-label="Open dashboard">↗</button>
+            <button onClick={toggleTheme} type="button" aria-label="Toggle theme"><Icon name={theme === "dark" ? "sun" : "moon"} /></button>
+            <button onClick={openFullManager} type="button" aria-label="Open dashboard"><Icon name="external" /></button>
           </div>
         </header>
 
         <section className="current-browser">
-          <div className="current-browser-row"><strong>Current Browser</strong><span className="tab-dots">● ● ● <small>+{tabCount}</small></span></div>
+          <div className="current-browser-row"><strong>Current Browser</strong><span className="tab-dots"><Icon name="tabs" /><small>+{tabCount}</small></span></div>
           <span>{tabCount} tabs open · Ready to save your current tabs</span>
-          <button onClick={handleQuickSave} disabled={saving} type="button">＋ {saving ? "Saving…" : "Save Current Tabs"}</button>
+          <button onClick={handleQuickSave} disabled={saving} type="button"><Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}</button>
         </section>
 
-        <label className="final-search"><span>⌕</span><input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search workspaces…" /></label>
+        <label className="final-search"><span><Icon name="search" /></span><input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search workspaces…" /></label>
 
         <div className="final-section-heading"><span>My Workspaces</span><button onClick={openFullManager} type="button">View all →</button></div>
         <div className="final-workspace-list">
-          {loading && <div className="final-empty">Loading workspaces…</div>}
+          {/* {loading && <div className="final-empty">Loading workspaces…</div>} */}
           {!loading && sessions.length === 0 && (
             <div className="final-empty-state">
               <div className="empty-bars" aria-hidden="true"><i /><i /><i /><i /></div>
               <strong>No workspaces yet</strong>
               <span>Save your current browser tabs and come back to them anytime.</span>
-              <button className="empty-save" onClick={handleQuickSave} disabled={saving} type="button">＋ Save Current Tabs</button>
-              <button className="empty-create" onClick={openNewWorkspaceModal} type="button">Create New Workspace</button>
+              {/* <button className="empty-save" onClick={handleQuickSave} disabled={saving} type="button"><Icon name="plus" /> Save Current Tabs</button>
+              <button className="empty-create" onClick={openNewWorkspaceModal} type="button">Create New Workspace</button> */}
             </div>
           )}
           {!loading && sessions.length > 0 && filteredSessions.length === 0 && <div className="final-empty">No workspaces match your search.</div>}
           {filteredSessions.map((session, index) => (
-            <article className={`final-workspace accent-${index % 6} ${expandedIds.has(session.id) ? "is-expanded" : ""}`} key={session.id}>
+            <article
+                className={`final-workspace accent-${index % 6} ${expandedIds.has(session.id) ? "is-expanded" : ""} ${draggedId === session.id ? "is-dragging" : ""} ${dragOverId === session.id && draggedId !== session.id ? "is-drag-over" : ""}`}
+                key={session.id}
+                draggable
+                onDragStart={() => setDraggedId(session.id)}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (dragOverId !== session.id) setDragOverId(session.id);
+                }}
+                onDragLeave={() => setDragOverId((current) => (current === session.id ? null : current))}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  handleReorder(draggedId, session.id);
+                  setDraggedId(null);
+                  setDragOverId(null);
+                }}
+                onDragEnd={() => {
+                  setDraggedId(null);
+                  setDragOverId(null);
+                }}
+              >
               <button
                 className="final-workspace-trigger"
                 onClick={() => toggleExpanded(session.id)}
@@ -532,14 +583,14 @@ export default function App() {
                 </span>
               </button>
               <div className="final-card-actions">
-                <button className="final-delete" onClick={() => setOpenMenuId((current) => current === session.id ? null : session.id)} type="button" aria-label="Workspace actions">⋮</button>
+                <button className="final-delete" onClick={() => setOpenMenuId((current) => current === session.id ? null : session.id)} type="button" aria-label="Workspace actions"><Icon name="more" /></button>
               </div>
               {openMenuId === session.id && (
                 <div className="final-menu" role="menu">
-                  <button onClick={() => { setOpenMenuId(null); renameWorkspace(session); }} type="button">✎ <span>Rename / Edit</span></button>
-                  <button onClick={() => { setOpenMenuId(null); duplicateWorkspace(session); }} type="button">▣ <span>Duplicate</span></button>
-                  <button onClick={() => { setOpenMenuId(null); exportWorkspacesToCsv([session]); showNotice("Workspace exported as CSV."); }} type="button">⇩ <span>Export CSV</span></button>
-                  <button className="is-danger" onClick={() => { setOpenMenuId(null); requestDeleteSession(session); }} type="button">♧ <span>Delete</span></button>
+                  <button onClick={() => { setOpenMenuId(null); renameWorkspace(session); }} type="button"><Icon name="edit" /> <span>Rename / Edit</span></button>
+                  <button onClick={() => { setOpenMenuId(null); duplicateWorkspace(session); }} type="button"><Icon name="copy" /> <span>Duplicate</span></button>
+                  <button onClick={() => { setOpenMenuId(null); exportWorkspacesToCsv([session]); showNotice("Workspace exported as CSV."); }} type="button"><Icon name="download" /> <span>Export CSV</span></button>
+                  <button className="is-danger" onClick={() => { setOpenMenuId(null); requestDeleteSession(session); }} type="button"><Icon name="trash" /> <span>Delete</span></button>
                 </div>
               )}
               {expandedIds.has(session.id) && (
@@ -558,18 +609,18 @@ export default function App() {
                           <LinkFavicon tab={tab} />
                           <span><strong>{tab.title || tab.url}</strong><small>{tab.url}</small></span>
                         </button>
-                        <button className="final-link-edit" onClick={() => openLinkEditor(session, tabIndex)} type="button" aria-label="Edit link">✎</button>
-                        <button className="final-link-delete" onClick={() => requestDeleteTab(session, tabIndex)} type="button" aria-label="Delete link">×</button>
+                        <button className="final-link-edit" onClick={() => openLinkEditor(session, tabIndex)} type="button" aria-label="Edit link"><Icon name="edit" /></button>
+                        <button className="final-link-delete" onClick={() => requestDeleteTab(session, tabIndex)} type="button" aria-label="Delete link"><Icon name="close" /></button>
                       </div>
                     ))}
                   </div>
                   <div className="final-expanded-actions">
-                    <button className="is-primary" onClick={() => handleOpenAll(session)} type="button">↗ Open All</button>
-                    <button onClick={() => handleOpenNewWindow(session)} type="button">↗ New Window</button>
+                    <button className="is-primary" onClick={() => handleOpenAll(session)} type="button"><Icon name="external" /> Open All</button>
+                    <button onClick={() => handleOpenNewWindow(session)} type="button"><Icon name="window" /> New Window</button>
                     <button onClick={() => handleOpenSelected(session)} type="button">Open Selected</button>
                     <button onClick={() => handleOpenSelectedNewWindow(session)} type="button">Selected New Window</button>
-                    <button onClick={() => handleAddCurrentLinks(session)} type="button">＋ Add Current Links</button>
-                    <button className="is-danger" onClick={() => requestDeleteSession(session)} type="button">⌫ Delete Workspace</button>
+                    <button onClick={() => handleAddCurrentLinks(session)} type="button"><Icon name="plus" /> Add Current Links</button>
+                    <button className="is-danger" onClick={() => requestDeleteSession(session)} type="button"><Icon name="trash" /> Delete Workspace</button>
                   </div>
                 </>
               )}
@@ -577,7 +628,7 @@ export default function App() {
           ))}
         </div>
 
-        {sessions.length > 0 && <button className="final-new-workspace" onClick={openNewWorkspaceModal} type="button">＋ New Workspace</button>}
+        {sessions.length > 0 && <button className="final-new-workspace" onClick={openNewWorkspaceModal} type="button"><Icon name="plus" /> New Workspace</button>}
         <footer className="final-footer"><span>{sessions.length} Workspaces</span><button onClick={openFullManager} type="button">Open Dashboard →</button></footer>
       </div>
 
@@ -589,7 +640,7 @@ export default function App() {
         <div className="manager-header-actions">
           <span className="manager-count">{sessions.length}</span>
           <button className="theme-toggle" onClick={toggleTheme} type="button" aria-label="Toggle theme">
-            {theme === "dark" ? "☀" : "☾"}
+            <Icon name={theme === "dark" ? "sun" : "moon"} />
           </button>
         </div>
       </header>
@@ -716,7 +767,7 @@ export default function App() {
                             <span className="link-date">Opened {tab.lastVisitedAt ? formatDate(tab.lastVisitedAt) : "recently"}</span>
                           </span>
                         </button>
-                        <button className="link-delete" onClick={() => requestDeleteTab(session, index)} type="button" aria-label="Delete link">✕</button>
+                        <button className="link-delete" onClick={() => requestDeleteTab(session, index)} type="button" aria-label="Delete link"><Icon name="close" /></button>
                       </div>
                     ))}
                   </div>
@@ -759,7 +810,7 @@ export default function App() {
           <form className="new-workspace-dialog" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); saveWorkspaceModal(); }}>
             <div className="new-workspace-title-row">
               <div><h2>{editingSession ? "Edit Workspace" : "New Workspace"}</h2><p>{editingSession ? "Update this workspace’s details." : "Save your current browser tabs in one place."}</p></div>
-              <button onClick={closeWorkspaceModal} type="button" aria-label="Close">×</button>
+              <button onClick={closeWorkspaceModal} type="button" aria-label="Close"><Icon name="close" /></button>
             </div>
             <label>Workspace name<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Design research" autoFocus /></label>
             <label>Note <span>(optional)</span><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="What is this workspace for?" rows="3" /></label>
@@ -777,7 +828,7 @@ export default function App() {
           <form className="new-workspace-dialog link-edit-dialog" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); saveLinkEditor(); }}>
             <div className="new-workspace-title-row">
               <div><h2>Edit Link</h2><p>Update this saved link's details.</p></div>
-              <button onClick={closeLinkEditor} type="button" aria-label="Close">×</button>
+              <button onClick={closeLinkEditor} type="button" aria-label="Close"><Icon name="close" /></button>
             </div>
             <label>Title<input value={linkTitle} onChange={(event) => setLinkTitle(event.target.value)} placeholder="Link title" autoFocus /></label>
             <label>URL<input type="url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} placeholder="https://example.com" /></label>
@@ -793,6 +844,26 @@ export default function App() {
       )}
     </div>
   );
+}
+
+function Icon({ name }) {
+  const paths = {
+    close: <><path d="m6 6 12 12M18 6 6 18" /></>,
+    copy: <><rect x="8" y="8" width="10" height="10" rx="1.5" /><path d="M6 15H5.5A1.5 1.5 0 0 1 4 13.5v-8A1.5 1.5 0 0 1 5.5 4h8A1.5 1.5 0 0 1 15 5.5V6" /></>,
+    download: <><path d="M12 4v10M8 10l4 4 4-4M5 19h14" /></>,
+    edit: <><path d="m5 16-.8 3.8L8 19l9.8-9.8a2.1 2.1 0 0 0-3-3Z" /><path d="m13.5 7.5 3 3" /></>,
+    external: <><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" /></>,
+    moon: <><path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z" /></>,
+    more: <><circle cx="5" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="19" cy="12" r="1" fill="currentColor" /></>,
+    plus: <><path d="M12 5v14M5 12h14" /></>,
+    search: <><circle cx="10.5" cy="10.5" r="6" /><path d="m15 15 4 4" /></>,
+    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
+    tabs: <><rect x="3" y="5" width="4" height="4" rx="1" fill="currentColor" /><rect x="10" y="5" width="4" height="4" rx="1" fill="currentColor" /><rect x="17" y="5" width="4" height="4" rx="1" fill="currentColor" /></>,
+    trash: <><path d="M5 7h14M10 4h4l1 3H9ZM7 7l1 13h8l1-13M10 10v7M14 10v7" /></>,
+    window: <><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 9h16M8 7h.01" /></>
+  };
+
+  return <svg className="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
 function FolderIcon() {

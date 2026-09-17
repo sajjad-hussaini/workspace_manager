@@ -88,6 +88,8 @@ export function sortSessions(sessions, sortKey) {
   const compareNames = (a, b) => String(a.title || "").localeCompare(String(b.title || ""), undefined, { sensitivity: "base" });
 
   switch (sortKey) {
+    case "manual":
+      return list.sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) || compareNames(a, b));
     case "opened-desc":
       return list.sort((a, b) => (Date.parse(b.lastOpenedAt) || 0) - (Date.parse(a.lastOpenedAt) || 0) || compareNames(a, b));
     case "name-asc":
