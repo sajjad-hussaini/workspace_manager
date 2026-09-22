@@ -1,12 +1,8 @@
-// src/lib/storage.js
-// Har session apni alag key me store hoti hai taake sync ki 8KB per-item limit
-// zyada se zyada sessions ke liye fit ho sake. Chhoti sessions "sync" me jati hain
-// (agar user Google se signed-in hai to dusre devices pe bhi milengi), badi ya
-// sync-fail hone wali sessions "local" me chali jati hain.
+
 
 const PREFIX = "session_";
 const THEME_KEY = "tabWorkspacesTheme";
-const SYNC_ITEM_LIMIT_BYTES = 7500; // Chrome ki 8192 hard limit se thora neeche
+const SYNC_ITEM_LIMIT_BYTES = 7500; // Chrome 8192 hard limit below which sync storage is guaranteed to work, but we leave some buffer for overhead
 
 function keyOf(id) {
   return `${PREFIX}${id}`;
@@ -61,8 +57,7 @@ export async function persistTheme(theme) {
   await chrome.storage.local.set({ [THEME_KEY]: theme === "light" ? "light" : "dark" });
 }
 
-// chrome.storage change events sunta hai taake dono pages (popup + fullpage)
-// hamesha latest data dikhayen, chahe change kahin se bhi hui ho
+// session on change listerner only callback if the change is relevant to sessions (i.e. key starts with PREFIX)
 export function onSessionsChanged(callback) {
   const listener = (changes, areaName) => {
     if (areaName !== "sync" && areaName !== "local") return;

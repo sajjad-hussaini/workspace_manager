@@ -39,6 +39,11 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [currentTabs, setCurrentTabs] = useState([]);
+
+  useEffect(() => {
+    getCurrentTabs().then(setCurrentTabs);
+  }, []);
 
   const refresh = useCallback(async () => {
     const data = await getSessions();
@@ -542,17 +547,47 @@ export default function App() {
           <div className="final-brand"><span className="final-logo">W</span><strong>Workspace Manager</strong></div>
           <div className="final-header-actions">
             <button onClick={toggleTheme} type="button" aria-label="Toggle theme"><Icon name={theme === "dark" ? "sun" : "moon"} /></button>
-            <button onClick={openFullManager} type="button" aria-label="Open dashboard"><Icon name="external" /></button>
+            {/* add tooltip */}
+            <button onClick={openFullManager} type="button" aria-label="Open dashboard" title="Open dashboard"><Icon name="external" /></button>
           </div>
         </header>
 
         <section className="current-browser">
-          <div className="current-browser-row"><strong>Current Browser</strong><span className="tab-dots"><Icon name="tabs" /><small>+{tabCount}</small></span></div>
-          <span>{tabCount} tabs open · Ready to save your current tabs</span>
+        <div className="current-browser-row">
+          <strong>Current Browser</strong>
+          <span className="tab-dots">
+            {currentTabs.slice(0, 3).map((tab, index) => {
+              const fallback = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(
+                tab.url || tab.title
+              )}&sz=24`;
+
+              return (
+                <img
+                  key={tab.id ?? index}
+                  src={tab.favicon || fallback}
+                  alt=""
+                  className="tab-favicon"
+                  onError={(e) => {
+                    // agar original favicon fail ho, google's favicon service try karo
+                    if (e.currentTarget.src !== fallback) {
+                      e.currentTarget.src = fallback;
+                    } else {
+                      // fallback bhi fail ho to hi hide karo
+                      e.currentTarget.style.display = "none";
+                    }
+                  }}
+                />
+              );
+            })}
+
+            {currentTabs.length > 3 && <small>+{currentTabs.length - 3}</small>}
+          </span>
+        </div>
+          <span>{currentTabs.length} tabs open · Ready to save your current tabs</span>
           <button onClick={handleQuickSave} disabled={saving} type="button"><Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}</button>
         </section>
 
-        <label className="final-search"><span><Icon name="search" /></span><input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search workspaces…" /></label>
+        <label className="final-search"><span><Icon name="search" /></span><input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search workspaces, tabs, tags, notes... " /></label>
 
         <div className="final-section-heading"><span>My Workspaces</span><button onClick={openFullManager} type="button">View all →</button></div>
         <div className="final-workspace-list">
@@ -614,7 +649,7 @@ export default function App() {
               </div>
               {openMenuId === session.id && (
                 <div className="final-menu" role="menu">
-                  <button onClick={() => { setOpenMenuId(null); renameWorkspace(session); }} type="button"><Icon name="edit" /> <span>Rename / Edit</span></button>
+                  <button onClick={() => { setOpenMenuId(null); renameWorkspace(session); }} type="button"><Icon name="edit" /> <span>Edit Workspace</span></button>
                   <button onClick={() => { setOpenMenuId(null); duplicateWorkspace(session); }} type="button"><Icon name="copy" /> <span>Duplicate</span></button>
                   <button onClick={() => { setOpenMenuId(null); exportWorkspacesToCsv([session]); showNotice("Workspace exported as CSV."); }} type="button"><Icon name="download" /> <span>Export CSV</span></button>
                   <button className="is-danger" onClick={() => { setOpenMenuId(null); requestDeleteSession(session); }} type="button"><Icon name="trash" /> <span>Delete</span></button>
@@ -656,7 +691,7 @@ export default function App() {
         </div>
 
         {sessions.length > 0 && <button className="final-new-workspace" onClick={openNewWorkspaceModal} type="button"><Icon name="plus" /> New Workspace</button>}
-        <footer className="final-footer"><span>{sessions.length} Workspaces</span><button onClick={openFullManager} type="button">Open Dashboard →</button></footer>
+        <footer className="final-footer"><span>{sessions.length} Workspaces</span></footer>
       </div>
 
       <header className="manager-header">

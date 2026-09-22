@@ -20,11 +20,27 @@ export function getUniqueTabs(tabs) {
   });
 }
 
+
 export async function getCurrentTabs() {
   const tabs = await chrome.tabs.query({ currentWindow: true });
+
+  console.log(tabs.map(tab => ({
+    title: tab.title,
+    favicon: tab.favIconUrl
+  })));
+
   return tabs
-    .filter((tab) => tab.url && !tab.url.startsWith("chrome://") && !tab.url.startsWith("chrome-extension://"))
-    .map((tab) => ({ url: tab.url, title: tab.title || "", favicon: tab.favIconUrl || "" }));
+    .filter(
+      (tab) =>
+        tab.url &&
+        !tab.url.startsWith("chrome://") &&
+        !tab.url.startsWith("chrome-extension://")
+    )
+    .map((tab) => ({
+      url: tab.url,
+      title: tab.title || "",
+      favicon: tab.favIconUrl || "",
+    }));
 }
 
 export function formatDate(dateString) {

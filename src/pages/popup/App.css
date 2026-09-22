@@ -1441,6 +1441,11 @@
   font-weight: 400;
 }
 
+.new-workspace-dialog label :is(input, textarea)::placeholder {
+  color: #98a3b5;
+  font-weight: 400;
+}
+
 .new-workspace-dialog input,
 .new-workspace-dialog textarea {
   width: 100%;
@@ -1821,4 +1826,16 @@
     opacity: 1;
     transform: scaleX(1);
   }
+}
+.tab-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-favicon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 3px;
 }
