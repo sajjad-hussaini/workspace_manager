@@ -1,152 +1,225 @@
-import { useState } from "react";
+import { FolderIcon, Icon, LinkFavicon } from "./Icons";
 
 export default function WorkspaceCard({
   session,
-  expanded,
-  selectedIndexes,
+  index = 0,
+  expanded = false,
+  selectedIndexes = new Set(),
+  openMenuId,
+  setOpenMenuId,
+  isDragging = false,
+  isDragOver = false,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
   onToggleExpanded,
+  onEditSession,
+  onDuplicateSession,
+  onExportSession,
+  onDeleteSession,
+  onToggleTabSelection,
+  onOpenTab,
+  onEditTab,
+  onDeleteTab,
   onOpenAll,
   onOpenNewWindow,
   onOpenSelected,
   onOpenSelectedNewWindow,
   onAddCurrentLinks,
-  onDeleteSession,
-  onDeleteTab,
-  onToggleTabSelection,
   getFaviconUrl,
   formatDate
 }) {
   const tabs = Array.isArray(session.tabs) ? session.tabs : [];
   const selectedCount = selectedIndexes.size;
+  const isMenuOpen = openMenuId === session.id;
+
+  // Preview: show up to 4 tabs in the 2-column grid
+  const previewTabs = tabs.slice(0, 4);
+  const extraCount = tabs.length - previewTabs.length;
+
+  function getRelativeDate(isoString) {
+    if (!isoString) return null;
+    const diff = Date.now() - Date.parse(isoString);
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return "today";
+    if (days === 1) return "yesterday";
+    return `${days} days ago`;
+  }
+
+  const lastActivity = session.lastOpenedAt || session.createdAt;
+  const relativeDate = getRelativeDate(lastActivity);
+  const activityLabel = session.lastOpenedAt ? "Updated" : "Saved";
 
   return (
-    <div className={`workspace-card ${expanded ? "is-expanded" : ""}`}>
-      <button className="workspace-summary" onClick={onToggleExpanded} type="button">
-        <span className="workspace-mark" aria-hidden="true">
-          <FolderIcon />
-        </span>
-        <span className="workspace-details">
-          <span className="workspace-title">{session.title}</span>
-          {session.note && <span className="workspace-note">{session.note}</span>}
-          {Array.isArray(session.tags) && session.tags.length > 0 && (
-            <span className="workspace-card-tags">
-              {session.tags.map((t, idx) => (
-                <span key={idx} className="workspace-card-tag">#{t}</span>
-              ))}
-            </span>
-          )}
-          <span className="workspace-meta">
-            Saved {formatDate(session.createdAt)}
-            {session.lastOpenedAt && ` · Opened ${formatDate(session.lastOpenedAt)}`}
-            {session.reminderAt && ` · Reminder ${formatDate(session.reminderAt)}`}
-            {" · "}
-            {tabs.length} link{tabs.length === 1 ? "" : "s"}
-            {" · "}
-            <span className={`storage-pill ${session.storageArea === "sync" ? "is-sync" : "is-local"}`}>
-              {session.storageArea === "sync" ? "Synced" : "Local"}
-            </span>
+    <article
+      className={`ws-card accent-${index % 6} ${expanded ? "is-expanded" : ""} ${isDragging ? "is-dragging" : ""} ${isDragOver ? "is-drag-over" : ""}`}
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
+      {/* ── Card header ── */}
+      <div className="ws-card-header">
+        <button
+          className="ws-card-title-btn"
+          onClick={onToggleExpanded}
+          type="button"
+          aria-expanded={expanded}
+          title={expanded ? "Collapse" : "Expand workspace"}
+        >
+          <span className="ws-card-folder">
+            <FolderIcon />
           </span>
-        </span>
-        <span className={`chevron ${expanded ? "is-open" : ""}`} aria-hidden="true">
-          ▾
-        </span>
-      </button>
+          <span className="ws-card-name">{session.title}</span>
+        </button>
+        <button
+          className="ws-card-menu-btn"
+          onClick={() => setOpenMenuId(isMenuOpen ? null : session.id)}
+          type="button"
+          aria-label="Workspace actions"
+        >
+          <Icon name="more" />
+        </button>
+      </div>
 
-      {expanded && (
-        <div className="workspace-content">
-          <div className="workspace-toolbar">
-            <button className="btn btn-sm" onClick={onAddCurrentLinks} type="button">
-              + Add Current Links
+      {/* ── Dropdown menu ── */}
+      {isMenuOpen && (
+        <div className="ws-card-menu" role="menu">
+          <button onClick={() => { setOpenMenuId(null); onEditSession(); }} type="button">
+            <Icon name="edit" /> <span>Edit Workspace</span>
+          </button>
+          <button onClick={() => { setOpenMenuId(null); onDuplicateSession(); }} type="button">
+            <Icon name="copy" /> <span>Duplicate</span>
+          </button>
+          <button onClick={() => { setOpenMenuId(null); onExportSession(); }} type="button">
+            <Icon name="download" /> <span>Export CSV</span>
+          </button>
+          <button className="is-danger" onClick={() => { setOpenMenuId(null); onDeleteSession(); }} type="button">
+            <Icon name="trash" /> <span>Delete</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── Tab preview grid (always visible when collapsed) ── */}
+      {!expanded && (
+        <>
+          {tabs.length === 0 ? (
+            <p className="ws-card-empty">No saved links yet.</p>
+          ) : (
+            <div className="ws-tab-grid">
+              {previewTabs.map((tab, tabIndex) => (
+                <button
+                  key={`${session.id}-${tabIndex}`}
+                  className="ws-tab-item"
+                  onClick={() => onOpenTab(tab.url, tabIndex)}
+                  type="button"
+                  title={tab.url}
+                >
+                  <span className="ws-tab-favicon">
+                    <LinkFavicon tab={tab} getFaviconUrl={getFaviconUrl} />
+                  </span>
+                  <span className="ws-tab-copy">
+                    <span className="ws-tab-title">{tab.title || tab.url}</span>
+                    <span className="ws-tab-url">{tab.url}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {extraCount > 0 && (
+            <button
+              className="ws-more-tabs"
+              onClick={onToggleExpanded}
+              type="button"
+            >
+              +{extraCount} more tab{extraCount === 1 ? "" : "s"}
             </button>
-          </div>
+          )}
+        </>
+      )}
 
-          <div className="tab-list">
-            {tabs.length === 0 && <div className="empty-tabs">This workspace has no saved links.</div>}
-            {tabs.map((tab, index) => (
-              <TabRow
-                key={`${tab.url}-${index}`}
-                tab={tab}
-                checked={selectedIndexes.has(index)}
-                onCheck={(checked) => onToggleTabSelection(index, checked)}
-                onOpen={() => chrome.tabs.create({ url: tab.url })}
-                onDelete={() => onDeleteTab(index)}
-                getFaviconUrl={getFaviconUrl}
-                formatDate={formatDate}
-              />
+      {/* ── Expanded: full link list + actions ── */}
+      {expanded && (
+        <>
+          <div className="ws-expanded-links">
+            {tabs.length === 0 && (
+              <span className="ws-no-links">No saved links in this workspace.</span>
+            )}
+            {tabs.map((tab, tabIndex) => (
+              <div className="ws-link-row" key={`${session.id}-${tabIndex}`}>
+                <input
+                  type="checkbox"
+                  className="ws-link-check"
+                  checked={selectedIndexes.has(tabIndex)}
+                  onChange={(e) => onToggleTabSelection(tabIndex, e.target.checked)}
+                  aria-label={`Select ${tab.title || tab.url}`}
+                />
+                <button
+                  className="ws-link-open"
+                  onClick={() => onOpenTab(tab.url, tabIndex)}
+                  type="button"
+                  title={tab.url}
+                >
+                  <span className="ws-tab-favicon">
+                    <LinkFavicon tab={tab} getFaviconUrl={getFaviconUrl} />
+                  </span>
+                  <span className="ws-tab-copy">
+                    <span className="ws-tab-title">{tab.title || tab.url}</span>
+                    <span className="ws-tab-url">{tab.url}</span>
+                    {tab.lastVisitedAt && (
+                      <span className="ws-tab-visited">Opened {formatDate(tab.lastVisitedAt)}</span>
+                    )}
+                  </span>
+                </button>
+                <button className="ws-link-edit" onClick={() => onEditTab(tabIndex)} type="button" aria-label="Edit link" title="Edit link">
+                  <Icon name="edit" />
+                </button>
+                <button className="ws-link-del" onClick={() => onDeleteTab(tabIndex)} type="button" aria-label="Delete link" title="Delete link">
+                  <Icon name="close" />
+                </button>
+              </div>
             ))}
           </div>
 
-          <div className="workspace-actions">
-            <button className="btn" onClick={onOpenAll} type="button">
-              Open All
+          <div className="ws-expanded-actions">
+            <button className="is-primary" onClick={onOpenAll} type="button">
+              <Icon name="external" /> Open All ({tabs.length})
             </button>
-            <button className="btn" onClick={onOpenNewWindow} type="button">
-              New Window
+            <button onClick={onOpenNewWindow} type="button">
+              <Icon name="window" /> New Window
             </button>
-            <button
-              className="btn"
-              onClick={onOpenSelected}
-              disabled={selectedCount === 0}
-              type="button"
-            >
-              Open Selected{selectedCount ? ` (${selectedCount})` : ""}
+            <button onClick={onOpenSelected} disabled={selectedCount === 0} type="button">
+              Open Selected {selectedCount ? `(${selectedCount})` : ""}
             </button>
-            <button
-              className="btn"
-              onClick={onOpenSelectedNewWindow}
-              disabled={selectedCount === 0}
-              type="button"
-            >
-              Selected → New Window{selectedCount ? ` (${selectedCount})` : ""}
+            <button onClick={onOpenSelectedNewWindow} disabled={selectedCount === 0} type="button">
+              Selected → New Window {selectedCount ? `(${selectedCount})` : ""}
             </button>
-            <button className="btn btn-danger" onClick={onDeleteSession} type="button">
-              Delete Workspace
+            <button onClick={onAddCurrentLinks} type="button">
+              <Icon name="plus" /> Add Current Links
+            </button>
+            <button className="is-danger" onClick={onDeleteSession} type="button">
+              <Icon name="trash" /> Delete Workspace
             </button>
           </div>
-        </div>
+        </>
       )}
-    </div>
-  );
-}
 
-function TabRow({ tab, checked, onCheck, onOpen, onDelete, getFaviconUrl, formatDate }) {
-  const [faviconFailed, setFaviconFailed] = useState(false);
-
-  return (
-    <div className="tab-row">
-      <label className="tab-select">
-        <input type="checkbox" checked={checked} onChange={(e) => onCheck(e.target.checked)} />
-      </label>
-
-      <button className="tab-link" onClick={onOpen} type="button" title={tab.url}>
-        <span className="tab-icon">
-          {!faviconFailed && tab.favicon ? (
-            <img src={tab.favicon} alt="" onError={() => setFaviconFailed(true)} />
-          ) : !faviconFailed ? (
-            <img src={getFaviconUrl(tab.url)} alt="" onError={() => setFaviconFailed(true)} />
-          ) : (
-            <span className="favicon-fallback">{(tab.title || tab.url || "T").charAt(0).toUpperCase()}</span>
-          )}
-        </span>
-        <span className="tab-text">
-          <span className="tab-title">{tab.title || "Untitled tab"}</span>
-          <span className="tab-url">{tab.url}</span>
-        </span>
-      </button>
-
-      <span className="tab-visited">{tab.lastVisitedAt ? formatDate(tab.lastVisitedAt) : "Not opened yet"}</span>
-
-      <button className="tab-delete" onClick={onDelete} type="button" aria-label="Delete link" title="Delete link">
-        ×
-      </button>
-    </div>
-  );
-}
-
-function FolderIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2.5h6.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5Z" />
-    </svg>
+      {/* ── Card footer ── */}
+      <div className="ws-card-footer">
+        <span>{tabs.length} tab{tabs.length === 1 ? "" : "s"}{relativeDate ? ` · ${activityLabel} ${relativeDate}` : ""}</span>
+        {Array.isArray(session.tags) && session.tags.length > 0 && (
+          <span className="ws-card-tags">
+            {session.tags.map((tag, i) => (
+              <span key={i} className="ws-card-tag">#{tag}</span>
+            ))}
+          </span>
+        )}
+      </div>
+    </article>
   );
 }

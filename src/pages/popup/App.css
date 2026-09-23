@@ -242,12 +242,23 @@
 }
 
 .current-browser {
-  padding: 12px 10px 10px;
-  border: 1px solid #dfe5ee;
-  border-left: 3px solid #7c4dff;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, .04);
+    position: relative;
+    padding: 14px;
+    margin-bottom: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    overflow: hidden;
+}
+
+.current-browser::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #7c4dff;
 }
 
 .current-browser-row {
