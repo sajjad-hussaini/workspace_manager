@@ -17,7 +17,13 @@ export function Icon({ name }) {
     window: <><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 9h16M8 7h.01" /></>,
     clock: <><circle cx="12" cy="12" r="9" /><polyline points="12 6 12 12 16 14" /></>,
     tag: <><path d="m20.59 13.41-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></>,
-    check: <><polyline points="20 6 9 17 4 12" /></>
+    check: <><polyline points="20 6 9 17 4 12" /></>,
+    all: <><path d="M3 3h18v18H3z" /></>,
+    allspace: <><path d="M3 3h18v18H3z" /><path d="M7 7h10v10H7z" /></>,
+    favorite: <><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></>,
+    filleddropdowneuro: <><path d="M12 16l-6-6h12z" /></>,
+    unfilleddropdowneuro:  <><polyline points="6 9 12 15 18 9" /></>,
+    
   };
 
   return (

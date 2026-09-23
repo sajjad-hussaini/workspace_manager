@@ -629,8 +629,9 @@ export default function App() {
                 onClick={() => toggleExpanded(session.id)}
                 type="button"
                 aria-expanded={expandedIds.has(session.id)}>
-                  
-                <span className={`final-chevron ${expandedIds.has(session.id) ? "is-open" : ""}`} aria-hidden="true" />
+                <span className={`final-chevron ${expandedIds.has(session.id) ? "is-open" : ""}`} aria-hidden="true">
+                  <ChevronArrow isOpen={expandedIds.has(session.id)} />
+                </span>
                 <span className="final-folder"><FolderIcon /></span>
                 <span className="final-workspace-copy">
                   <strong>{session.title}</strong>
@@ -948,6 +949,36 @@ function FolderIcon() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2.5h6A2.5 2.5 0 0 1 20.5 10v7.5A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5Z" />
+    </svg>
+  );
+}
+
+function ChevronArrow({ isOpen }) {
+  if (isOpen) {
+    return (
+      <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" className="final-chevron-svg">
+        <polygon
+          points="2.8,4.5 13.2,4.5 8,12"
+          fill="currentColor"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" className="final-chevron-svg">
+      <polygon
+        points="4.5,2.8 12,8 4.5,13.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

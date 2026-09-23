@@ -545,10 +545,10 @@ export default function App() {
 
         <nav className="sidebar-nav" aria-label="Workspace navigation">
           <button className="sidebar-link is-active" type="button">
-            <span>▰</span>All Workspaces <b>{sessions.length}</b>
+            <span><Icon name="allspace" /></span>All Workspaces <b>{sessions.length}</b>
           </button>
           <button className="sidebar-link" type="button" onClick={() => showToast("Favorites coming soon.")}>
-            <span>★</span>Favorites <b>0</b>
+            <span><Icon name="favorite" /></span>Favorites <b>0</b>
           </button>
         </nav>
 
@@ -561,8 +561,8 @@ export default function App() {
         </button>
 
         <div className="sidebar-stats">
-          <div><strong>{sessions.length}</strong><span>Workspaces</span></div>
-          <div><strong>{sessions.reduce((total, s) => total + (s.tabs?.length || 0), 0)}</strong><span>Links</span></div>
+          {/* <div><strong>{sessions.length}</strong><span>Workspaces</span></div> */}
+          {/* <div><strong>{sessions.reduce((total, s) => total + (s.tabs?.length || 0), 0)}</strong><span>Links</span></div> */}
         </div>
       </aside>
 
