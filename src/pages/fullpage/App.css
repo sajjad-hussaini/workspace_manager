@@ -415,12 +415,12 @@
 }
 
 /* Accent color variants */
-.ws-card.accent-0 { --accent-card: #7c4dff; }
+/* .ws-card.accent-0 { --accent-card: #7c4dff; }
 .ws-card.accent-1 { --accent-card: #ff9500; }
 .ws-card.accent-2 { --accent-card: #00b37e; }
 .ws-card.accent-3 { --accent-card: #e0405e; }
 .ws-card.accent-4 { --accent-card: #0084ff; }
-.ws-card.accent-5 { --accent-card: #00b37e; }
+.ws-card.accent-5 { --accent-card: #00b37e; } */
 
 /* Card header */
 .ws-card-header {

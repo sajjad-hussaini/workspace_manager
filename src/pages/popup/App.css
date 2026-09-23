@@ -407,7 +407,7 @@
   background: var(--accent-card);
 }
 
-.final-workspace.accent-1 {
+/* .final-workspace.accent-1 {
   --accent-card: #ff9a42;
 }
 
@@ -425,7 +425,7 @@
 
 .final-workspace.accent-5 {
   --accent-card: #f0b62d;
-}
+} */
 
 .final-folder {
   display: inline-grid;

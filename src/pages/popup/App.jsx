@@ -628,8 +628,8 @@ export default function App() {
                 className="final-workspace-trigger"
                 onClick={() => toggleExpanded(session.id)}
                 type="button"
-                aria-expanded={expandedIds.has(session.id)}
-              >
+                aria-expanded={expandedIds.has(session.id)}>
+                  
                 <span className={`final-chevron ${expandedIds.has(session.id) ? "is-open" : ""}`} aria-hidden="true" />
                 <span className="final-folder"><FolderIcon /></span>
                 <span className="final-workspace-copy">
@@ -948,6 +948,14 @@ function FolderIcon() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2.5h6A2.5 2.5 0 0 1 20.5 10v7.5A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5Z" />
+    </svg>
+  );
+}
+
+function DropDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
