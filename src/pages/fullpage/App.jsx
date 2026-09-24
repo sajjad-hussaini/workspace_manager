@@ -543,6 +543,14 @@ export default function App() {
           </button>
         </div>
 
+        {/* <div className="sidebar-section">TOOLS <button type="button" onClick={openNewWorkspaceModal}>+</button></div> */}
+        <button className="sidebar-new-btn" onClick={openNewWorkspaceModal} type="button">
+          <Icon name="plus" /> New Workspace
+        </button>
+        <button className="sidebar-export-btn" onClick={handleExportCsv} type="button">
+          <Icon name="download" /> Export CSV
+        </button>
+
         <nav className="sidebar-nav" aria-label="Workspace navigation">
           <button className="sidebar-link is-active" type="button">
             <span><Icon name="allspace" /></span>All Workspaces <b>{sessions.length}</b>
@@ -551,14 +559,6 @@ export default function App() {
             <span><Icon name="favorite" /></span>Favorites <b>0</b>
           </button>
         </nav>
-
-        <div className="sidebar-section">TOOLS <button type="button" onClick={openNewWorkspaceModal}>+</button></div>
-        <button className="sidebar-new-btn" onClick={openNewWorkspaceModal} type="button">
-          <Icon name="plus" /> New Workspace
-        </button>
-        <button className="sidebar-export-btn" onClick={handleExportCsv} type="button">
-          <Icon name="download" /> Export CSV
-        </button>
 
         <div className="sidebar-stats">
           {/* <div><strong>{sessions.length}</strong><span>Workspaces</span></div> */}
@@ -603,11 +603,12 @@ export default function App() {
           <div className="reminder-stack">
             {dueReminders.map((s) => (
               <div className="reminder-alert" key={s.id}>
-                <span className="reminder-dot" aria-hidden="true" />
+                <span className="reminder-icon"><Icon name="reminderbell" /></span>
                 <div>
                   <strong>{s.title}</strong> — reminder due {formatDate(s.reminderAt)}
                   {s.note ? ` · ${s.note}` : ""}
                 </div>
+                {/* <span className="reminder-close" ><Icon name="close" /></span> */}
               </div>
             ))}
           </div>
