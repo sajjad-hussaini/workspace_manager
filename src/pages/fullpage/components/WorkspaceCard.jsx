@@ -1,4 +1,5 @@
-import { FolderIcon, Icon, LinkFavicon } from "./Icons";
+import { useState, useRef, useEffect } from "react";
+import { Icon, LinkFavicon } from "./Icons";
 
 export default function WorkspaceCard({
   session,
@@ -23,203 +24,286 @@ export default function WorkspaceCard({
   onOpenTab,
   onEditTab,
   onDeleteTab,
+  onAddLink,
   onOpenAll,
   onOpenNewWindow,
   onOpenSelected,
   onOpenSelectedNewWindow,
-  onAddCurrentLinks,
   getFaviconUrl,
-  formatDate
 }) {
   const tabs = Array.isArray(session.tabs) ? session.tabs : [];
-  const selectedCount = selectedIndexes.size;
+  const selectedCount = tabs.filter((_, tabIndex) => selectedIndexes.has(tabIndex)).length;
   const isMenuOpen = openMenuId === session.id;
+  const [openDropdownActive, setOpenDropdownActive] = useState(false);
+  const openMenuRef = useRef(null);
 
-  // Preview: show up to 4 tabs in the 2-column grid
-  const previewTabs = tabs.slice(0, 4);
-  const extraCount = tabs.length - previewTabs.length;
+  useEffect(() => {
+    if (!openDropdownActive) return;
+    function handleOutside(e) {
+      if (openMenuRef.current && !openMenuRef.current.contains(e.target)) {
+        setOpenDropdownActive(false);
+      }
+    }
+    document.addEventListener("pointerdown", handleOutside);
+    return () => document.removeEventListener("pointerdown", handleOutside);
+  }, [openDropdownActive]);
 
-  function getRelativeDate(isoString) {
-    if (!isoString) return null;
-    const diff = Date.now() - Date.parse(isoString);
-    const days = Math.floor(diff / 86400000);
-    if (days === 0) return "today";
-    if (days === 1) return "yesterday";
-    return `${days} days ago`;
+  function formatRelativeDate(isoString) {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "";
+    const now = new Date();
+    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Updated today";
+    if (diffDays === 1) return "Updated yesterday";
+    if (diffDays < 7) return `Updated ${diffDays} days ago`;
+
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
 
-  const lastActivity = session.lastOpenedAt || session.createdAt;
-  const relativeDate = getRelativeDate(lastActivity);
-  const activityLabel = session.lastOpenedAt ? "Updated" : "Saved";
+  function getDomain(url = "") {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname.replace(/^www\./, "");
+    } catch {
+      return url;
+    }
+  }
+
+  const updatedDateText = formatRelativeDate(session.lastOpenedAt || session.createdAt);
 
   return (
-    <article
-      className={`ws-card accent-${index % 6} ${expanded ? "is-expanded" : ""} ${isDragging ? "is-dragging" : ""} ${isDragOver ? "is-drag-over" : ""}`}
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-      onDragEnd={onDragEnd}
-    >
-      {/* ── Card header ── */}
-      <div className="ws-card-header">
-        <button
-          className="ws-card-title-btn"
-          onClick={onToggleExpanded}
-          type="button"
-          aria-expanded={expanded}
-          title={expanded ? "Collapse" : "Expand workspace"}
-        >
-          <span className="ws-card-folder">
-            <FolderIcon />
-          </span>
-          <span className="ws-card-name">{session.title}</span>
-        </button>
-        <button
-          className="ws-card-menu-btn"
-          onClick={() => setOpenMenuId(isMenuOpen ? null : session.id)}
-          type="button"
-          aria-label="Workspace actions"
-        >
-          <Icon name="more" />
-        </button>
+    <article className={`modern-ws-card ${expanded ? "is-expanded" : ""} ${isMenuOpen || openDropdownActive ? "has-open-menu" : ""}`}>
+      {/* Top purple accent line */}
+      <div className="modern-ws-accent-bar" />
+
+      {/* Card Header */}
+      <div className="modern-ws-header">
+        <div className="modern-ws-info" onClick={onToggleExpanded} role="button" tabIndex={0}>
+          <h3 className="modern-ws-title">{session.title}</h3>
+          <div className="modern-ws-meta">
+            <span>{tabs.length} tabs</span>
+            {updatedDateText && (
+              <>
+                <span className="modern-meta-dot">·</span>
+                <span>{updatedDateText}</span>
+              </>
+            )}
+            {Array.isArray(session.tags) && session.tags.length > 0 && (
+              <span className="modern-ws-tags">
+                {session.tags.map((tag, i) => (
+                  <span key={i} className="modern-ws-tag-badge">
+                    {tag}
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right actions: Split Open Button, Chevron Toggle, More ⋮ Button */}
+        <div className="modern-ws-actions">
+          {/* Split Open Button */}
+          <div className="modern-split-btn-container" ref={openMenuRef}>
+            <button
+              className="modern-split-main-btn"
+              onClick={onOpenAll}
+              type="button"
+              title="Open all tabs"
+            >
+              Open
+            </button>
+            <button
+              className={`modern-split-arrow-btn ${openDropdownActive ? "is-active" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenDropdownActive((prev) => !prev);
+              }}
+              type="button"
+              aria-label="More open options"
+            >
+              <Icon name="chevron-down" />
+            </button>
+
+            {openDropdownActive && (
+              <div className="modern-split-dropdown" role="menu">
+                <button
+                  onClick={() => {
+                    setOpenDropdownActive(false);
+                    onOpenAll();
+                  }}
+                  type="button"
+                >
+                  <Icon name="external" /> Open in current window
+                </button>
+                <button
+                  onClick={() => {
+                    setOpenDropdownActive(false);
+                    onOpenNewWindow();
+                  }}
+                  type="button"
+                >
+                  <Icon name="window" /> Open in new window
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Expand / Collapse Chevron */}
+          <button
+            className="modern-icon-toggle-btn"
+            onClick={onToggleExpanded}
+            type="button"
+            aria-expanded={expanded}
+            title={expanded ? "Collapse" : "Expand"}
+          >
+            <Icon name={expanded ? "chevron-up" : "chevron-down"} />
+          </button>
+
+          {/* 3-dots Menu Button */}
+          <div className="modern-more-menu-container">
+            <button
+              className="modern-icon-more-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenMenuId(isMenuOpen ? null : session.id);
+              }}
+              type="button"
+              aria-label="Workspace options"
+            >
+              <Icon name="more" />
+            </button>
+
+            {isMenuOpen && (
+              <div className="modern-dropdown-menu" role="menu">
+                <button
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    onEditSession();
+                  }}
+                  type="button"
+                >
+                  <Icon name="edit" /> <span>Edit Workspace</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    onDuplicateSession();
+                  }}
+                  type="button"
+                >
+                  <Icon name="copy" /> <span>Duplicate</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    onExportSession();
+                  }}
+                  type="button"
+                >
+                  <Icon name="download" /> <span>Export CSV</span>
+                </button>
+                <button
+                  className="is-danger"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    onDeleteSession();
+                  }}
+                  type="button"
+                >
+                  <Icon name="trash" /> <span>Delete Workspace</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ── Dropdown menu ── */}
-      {isMenuOpen && (
-        <div className="ws-card-menu" role="menu">
-          <button onClick={() => { setOpenMenuId(null); onEditSession(); }} type="button">
-            <Icon name="edit" /> <span>Edit Workspace</span>
+      {selectedCount > 0 && (
+        <div className="modern-selection-actions" role="group" aria-label="Open selected links">
+          <span className="modern-selection-count" role="status">{selectedCount} selected</span>
+          <button className="modern-selection-btn" onClick={onOpenSelected} type="button">
+            <Icon name="external" /> Open selected in current window
           </button>
-          <button onClick={() => { setOpenMenuId(null); onDuplicateSession(); }} type="button">
-            <Icon name="copy" /> <span>Duplicate</span>
-          </button>
-          <button onClick={() => { setOpenMenuId(null); onExportSession(); }} type="button">
-            <Icon name="download" /> <span>Export CSV</span>
-          </button>
-          <button className="is-danger" onClick={() => { setOpenMenuId(null); onDeleteSession(); }} type="button">
-            <Icon name="trash" /> <span>Delete</span>
+          <button className="modern-selection-btn" onClick={onOpenSelectedNewWindow} type="button">
+            <Icon name="window" /> Open selected in new window
           </button>
         </div>
       )}
 
-      {/* ── Tab preview grid (always visible when collapsed) ── */}
-      {!expanded && (
-        <>
+      {/* Expanded Links Section */}
+      {expanded && (
+        <div className="modern-ws-body">
+          {/* Subsection Header */}
+          <div className="modern-links-header">
+            <span className="modern-links-count">
+              SAVED LINKS · {tabs.length}
+            </span>
+            <button
+              className="modern-add-link-btn"
+              onClick={() => onAddLink && onAddLink(session)}
+              type="button"
+            >
+              <Icon name="plus" /> Add Link
+            </button>
+          </div>
+
+          {/* Links List */}
           {tabs.length === 0 ? (
-            <p className="ws-card-empty">No saved links yet.</p>
+            <div className="modern-no-links">
+              <span>No links saved in this workspace yet.</span>
+            </div>
           ) : (
-            <div className="ws-tab-grid">
-              {previewTabs.map((tab, tabIndex) => (
-                <button
-                  key={`${session.id}-${tabIndex}`}
-                  className="ws-tab-item"
-                  onClick={() => onOpenTab(tab.url, tabIndex)}
-                  type="button"
-                  title={tab.url}
-                >
-                  <span className="ws-tab-favicon">
+            <div className="modern-links-list">
+              {tabs.map((tab, tabIndex) => (
+                <div className="modern-link-row" key={`${session.id}-${tabIndex}`}>
+                  <input
+                    type="checkbox"
+                    className="ws-link-check"
+                    checked={selectedIndexes.has(tabIndex)}
+                    onChange={(e) => onToggleTabSelection(tabIndex, e.target.checked)}
+                    aria-label={`Select ${tab.title || tab.url}`}
+                  />
+                  <button
+                    className="modern-link-main"
+                    onClick={() => onOpenTab(tab.url, tabIndex)}
+                    type="button"
+                    title={`Open ${tab.title || tab.url}`}
+                  >
                     <LinkFavicon tab={tab} getFaviconUrl={getFaviconUrl} />
-                  </span>
-                  <span className="ws-tab-copy">
-                    <span className="ws-tab-title">{tab.title || tab.url}</span>
-                    <span className="ws-tab-url">{tab.url}</span>
-                  </span>
-                </button>
+                    <div className="modern-link-text">
+                      <span className="modern-link-title">{tab.title || tab.url}</span>
+                      <span className="modern-link-domain">{getDomain(tab.url)}</span>
+                    </div>
+                  </button>
+
+                  <div className="modern-link-actions">
+                    <button
+                      className="modern-link-action-btn"
+                      onClick={() => onEditTab(tabIndex)}
+                      type="button"
+                      aria-label="Edit link"
+                      title="Edit link"
+                    >
+                      <Icon name="edit" />
+                    </button>
+                    <button
+                      className="modern-link-action-btn is-delete"
+                      onClick={() => onDeleteTab(tabIndex)}
+                      type="button"
+                      aria-label="Delete link"
+                      title="Delete link"
+                    >
+                      <Icon name="trash" />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
-
-          {extraCount > 0 && (
-            <button
-              className="ws-more-tabs"
-              onClick={onToggleExpanded}
-              type="button"
-            >
-              +{extraCount} more tab{extraCount === 1 ? "" : "s"}
-            </button>
-          )}
-        </>
+        </div>
       )}
-
-      {/* ── Expanded: full link list + actions ── */}
-      {expanded && (
-        <>
-          <div className="ws-expanded-links">
-            {tabs.length === 0 && (
-              <span className="ws-no-links">No saved links in this workspace.</span>
-            )}
-            {tabs.map((tab, tabIndex) => (
-              <div className="ws-link-row" key={`${session.id}-${tabIndex}`}>
-                <input
-                  type="checkbox"
-                  className="ws-link-check"
-                  checked={selectedIndexes.has(tabIndex)}
-                  onChange={(e) => onToggleTabSelection(tabIndex, e.target.checked)}
-                  aria-label={`Select ${tab.title || tab.url}`}
-                />
-                <button
-                  className="ws-link-open"
-                  onClick={() => onOpenTab(tab.url, tabIndex)}
-                  type="button"
-                  title={tab.url}
-                >
-                  <span className="ws-tab-favicon">
-                    <LinkFavicon tab={tab} getFaviconUrl={getFaviconUrl} />
-                  </span>
-                  <span className="ws-tab-copy">
-                    <span className="ws-tab-title">{tab.title || tab.url}</span>
-                    <span className="ws-tab-url">{tab.url}</span>
-                    {tab.lastVisitedAt && (
-                      <span className="ws-tab-visited">Opened {formatDate(tab.lastVisitedAt)}</span>
-                    )}
-                  </span>
-                </button>
-                <button className="ws-link-edit" onClick={() => onEditTab(tabIndex)} type="button" aria-label="Edit link" title="Edit link">
-                  <Icon name="edit" />
-                </button>
-                <button className="ws-link-del" onClick={() => onDeleteTab(tabIndex)} type="button" aria-label="Delete link" title="Delete link">
-                  <Icon name="close" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="ws-expanded-actions">
-            <button className="is-primary" onClick={onOpenAll} type="button">
-              <Icon name="external" /> Open All ({tabs.length})
-            </button>
-            <button onClick={onOpenNewWindow} type="button">
-              <Icon name="window" /> New Window
-            </button>
-            <button onClick={onOpenSelected} disabled={selectedCount === 0} type="button">
-              Open Selected {selectedCount ? `(${selectedCount})` : ""}
-            </button>
-            <button onClick={onOpenSelectedNewWindow} disabled={selectedCount === 0} type="button">
-              Selected → New Window {selectedCount ? `(${selectedCount})` : ""}
-            </button>
-            <button onClick={onAddCurrentLinks} type="button">
-              <Icon name="plus" /> Add Current Links
-            </button>
-            <button className="is-danger" onClick={onDeleteSession} type="button">
-              <Icon name="trash" /> Delete Workspace
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* ── Card footer ── */}
-      <div className="ws-card-footer">
-        <span>{tabs.length} tab{tabs.length === 1 ? "" : "s"}{relativeDate ? ` · ${activityLabel} ${relativeDate}` : ""}</span>
-        {Array.isArray(session.tags) && session.tags.length > 0 && (
-          <span className="ws-card-tags">
-            {session.tags.map((tag, i) => (
-              <span key={i} className="ws-card-tag">#{tag}</span>
-            ))}
-          </span>
-        )}
-      </div>
     </article>
   );
 }

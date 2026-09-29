@@ -6,13 +6,13 @@ import {
   getLinkKey,
   sortSessions,
   getFaviconUrl,
-  formatDate,
   exportWorkspacesToCsv,
   workspaceMatchesSearch
 } from "../../lib/utils";
 import WorkspaceCard from "./components/WorkspaceCard";
 import ConfirmDialog from "./components/ConfirmDialog";
 import Toast from "./components/Toast";
+import ReminderStack from "./components/ReminderStack";
 import { Icon } from "./components/Icons";
 
 export default function App() {
@@ -36,7 +36,7 @@ export default function App() {
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const [selectedByWorkspace, setSelectedByWorkspace] = useState(() => new Map());
   const [openMenuId, setOpenMenuId] = useState(null);
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState("light");
 
   // Drag & drop
   const [draggedId, setDraggedId] = useState(null);
@@ -110,12 +110,50 @@ export default function App() {
       .sort((a, b) => Date.parse(b.reminderAt) - Date.parse(a.reminderAt));
   }, [sessions]);
 
+  async function dismissReminder(session) {
+    try {
+      await persistSession({ ...session, reminderAt: "" });
+      await refresh();
+    } catch (error) {
+      console.error("Failed to dismiss reminder:", error);
+      showToast("Could not dismiss reminder. Please try again.");
+    }
+  }
+
   const visibleSessions = useMemo(() => {
     const filtered = activeSearch
       ? sessions.filter((s) => workspaceMatchesSearch(s, activeSearch))
       : sessions;
     return sortSessions(filtered, sortKey);
   }, [sessions, activeSearch, sortKey]);
+
+  const [activeNav, setActiveNav] = useState("all");
+  const [isEmptyWorkspace, setIsEmptyWorkspace] = useState(false);
+
+  // ── Metrics ───────────────────────────────────────────────────────────────
+  const totalSavedTabs = useMemo(() => {
+    return sessions.reduce((total, s) => total + (s.tabs?.length || 0), 0);
+  }, [sessions]);
+
+  const updatedThisWeekCount = useMemo(() => {
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return sessions.filter((s) => {
+      const t = Date.parse(s.lastOpenedAt || s.createdAt);
+      return !isNaN(t) && t >= oneWeekAgo;
+    }).length;
+  }, [sessions]);
+
+  const displayedSessions = useMemo(() => {
+    let list = visibleSessions;
+    if (activeNav === "recent") {
+      list = [...visibleSessions].sort((a, b) => {
+        const timeA = Date.parse(a.lastOpenedAt || a.createdAt || 0);
+        const timeB = Date.parse(b.lastOpenedAt || b.createdAt || 0);
+        return timeB - timeA;
+      });
+    }
+    return list;
+  }, [visibleSessions, activeNav]);
 
   // ── Save ──────────────────────────────────────────────────────────────────
 
@@ -249,7 +287,14 @@ export default function App() {
     await refresh();
   }
 
-  function getSelected(session) {
+  async function handleOpenTab(session, tabIndex) {
+    const tab = session.tabs?.[tabIndex];
+    if (!tab?.url) return;
+    await markOpened(session.id, [tabIndex]);
+    await chrome.tabs.create({ url: tab.url, active: false });
+    await refresh();
+  }
+ function getSelected(session) {
     const selected = selectedByWorkspace.get(session.id) || new Set();
     return (session.tabs || []).map((tab, index) => ({ tab, index })).filter(({ tab, index }) => selected.has(index) && tab.url);
   }
@@ -269,26 +314,7 @@ export default function App() {
     await chrome.windows.create({ url: selected.map(({ tab }) => tab.url), focused: true });
     await refresh();
   }
-
-  async function handleOpenTab(session, tabIndex) {
-    const tab = session.tabs?.[tabIndex];
-    if (!tab?.url) return;
-    await markOpened(session.id, [tabIndex]);
-    await chrome.tabs.create({ url: tab.url, active: false });
-    await refresh();
-  }
-
-  async function handleAddCurrentLinks(session) {
-    const tabs = await getCurrentTabs();
-    if (!tabs.length) return showToast("No valid links are open in this window.");
-    const existingKeys = new Set((session.tabs || []).map((t) => getLinkKey(t.url)));
-    const newTabs = getUniqueTabs(tabs).filter((t) => !existingKeys.has(getLinkKey(t.url)));
-    if (!newTabs.length) return showToast("All open links are already in this workspace.");
-    await persistSession({ ...session, tabs: [...(session.tabs || []), ...newTabs] });
-    showToast(`${newTabs.length} link${newTabs.length === 1 ? "" : "s"} added to "${session.title}".`);
-    await refresh();
-  }
-
+  
   // ── Delete ────────────────────────────────────────────────────────────────
 
   function requestDeleteSession(session) {
@@ -297,8 +323,8 @@ export default function App() {
       message: `"${session.title}" and all of its saved links will be permanently deleted.`,
       onConfirm: async () => {
         await deleteSessionStorage(session.id);
-        setExpandedIds((prev) => { const next = new Set(prev); next.delete(session.id); return next; });
         setSelectedByWorkspace((prev) => { const next = new Map(prev); next.delete(session.id); return next; });
+        setExpandedIds((prev) => { const next = new Set(prev); next.delete(session.id); return next; });
         await refresh();
         setConfirmState(null);
         showToast(`"${session.title}" deleted.`);
@@ -315,16 +341,13 @@ export default function App() {
         await persistSession({ ...session, tabs: updatedTabs });
         setSelectedByWorkspace((prev) => {
           const next = new Map(prev);
-          const selected = next.get(session.id);
-          if (selected) {
-            const shifted = new Set();
-            selected.forEach((i) => {
-              if (i < tabIndex) shifted.add(i);
-              if (i > tabIndex) shifted.add(i - 1);
-            });
-            if (shifted.size) next.set(session.id, shifted);
-            else next.delete(session.id);
-          }
+          const selected = new Set(
+            [...(next.get(session.id) || [])]
+              .filter((index) => index !== tabIndex)
+              .map((index) => index > tabIndex ? index - 1 : index)
+          );
+          if (selected.size) next.set(session.id, selected);
+          else next.delete(session.id);
           return next;
         });
         await refresh();
@@ -334,7 +357,7 @@ export default function App() {
     });
   }
 
-  // ── Expand / Select ────────────────────────────────────────────────────────
+  // ── Expand ────────────────────────────────────────────────────────────────
 
   function toggleExpanded(sessionId) {
     setExpandedIds((prev) => {
@@ -344,8 +367,7 @@ export default function App() {
       return next;
     });
   }
-
-  function toggleTabSelection(sessionId, tabIndex, checked) {
+    function toggleTabSelection(sessionId, tabIndex, checked) {
     setSelectedByWorkspace((prev) => {
       const next = new Map(prev);
       const selected = new Set(next.get(sessionId) || []);
@@ -361,6 +383,17 @@ export default function App() {
 
   function openNewWorkspaceModal() {
     setEditingSession(null);
+    setIsEmptyWorkspace(false);
+    setTitle("");
+    setNote("");
+    setTags("");
+    setReminderAt("");
+    setNewWorkspaceOpen(true);
+  }
+
+  function openEmptyWorkspaceModal() {
+    setEditingSession(null);
+    setIsEmptyWorkspace(true);
     setTitle("");
     setNote("");
     setTags("");
@@ -371,6 +404,7 @@ export default function App() {
   function closeWorkspaceModal() {
     setNewWorkspaceOpen(false);
     setEditingSession(null);
+    setIsEmptyWorkspace(false);
     setTitle("");
     setNote("");
     setTags("");
@@ -378,10 +412,6 @@ export default function App() {
   }
 
   async function saveWorkspaceModal() {
-    if (!editingSession) {
-      await handleSave();
-      return;
-    }
     const nextTitle = title.trim();
     if (!nextTitle) {
       showToast("Enter a workspace name first.");
@@ -389,20 +419,46 @@ export default function App() {
     }
     const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
     const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
-    await persistSession({
-      ...editingSession,
-      title: nextTitle,
-      note: note.trim(),
-      tags: parsedTags,
-      reminderAt: reminderIso
-    });
-    await refresh();
-    showToast("Workspace updated.");
+
+    if (editingSession) {
+      await persistSession({
+        ...editingSession,
+        title: nextTitle,
+        note: note.trim(),
+        tags: parsedTags,
+        reminderAt: reminderIso
+      });
+      await refresh();
+      showToast("Workspace updated.");
+      closeWorkspaceModal();
+      return;
+    }
+
+    if (isEmptyWorkspace) {
+      const newSession = {
+        id: `sess_${Date.now()}`,
+        title: nextTitle,
+        note: note.trim(),
+        tags: parsedTags,
+        reminderAt: reminderIso,
+        tabs: [],
+        createdAt: new Date().toISOString(),
+        order: sessions.length ? Math.max(...sessions.map((s) => s.order ?? 0)) + 1 : 0
+      };
+      await persistSession(newSession);
+      await refresh();
+      showToast(`Workspace "${nextTitle}" created.`);
+      closeWorkspaceModal();
+      return;
+    }
+
+    await handleSave();
     closeWorkspaceModal();
   }
 
   function renameWorkspace(session) {
     setEditingSession(session);
+    setIsEmptyWorkspace(false);
     setTitle(session.title || "");
     setNote(session.note || "");
     setTags(Array.isArray(session.tags) ? session.tags.join(", ") : session.tags || "");
@@ -423,7 +479,16 @@ export default function App() {
     showToast(`"${session.title}" duplicated.`);
   }
 
-  // ── Edit link modal ────────────────────────────────────────────────────────
+  // ── Edit / Add link modal ──────────────────────────────────────────────────
+
+  function openAddLink(session) {
+    setEditingLink({ session, tabIndex: -1 });
+    setLinkTitle("");
+    setLinkUrl("");
+    setLinkNote("");
+    setLinkTags("");
+    setLinkReminderAt("");
+  }
 
   function openLinkEditor(session, tabIndex) {
     const tab = session.tabs?.[tabIndex];
@@ -444,11 +509,27 @@ export default function App() {
     if (!editingLink) return;
     const trimmedUrl = linkUrl.trim();
     try { new URL(trimmedUrl); } catch {
-      showToast("Enter a valid link URL.");
+      showToast("Enter a valid link URL (e.g. https://example.com).");
       return;
     }
     const { session, tabIndex } = editingLink;
     const updatedTabs = [...(session.tabs || [])];
+
+    if (tabIndex === -1) {
+      const newTab = {
+        title: linkTitle.trim() || trimmedUrl,
+        url: trimmedUrl,
+        note: linkNote.trim(),
+        tags: linkTags.split(",").map((t) => t.trim()).filter(Boolean),
+        reminderAt: linkReminderAt ? new Date(linkReminderAt).toISOString() : ""
+      };
+      await persistSession({ ...session, tabs: [...updatedTabs, newTab] });
+      await refresh();
+      closeLinkEditor();
+      showToast("Link added.");
+      return;
+    }
+
     const currentTab = updatedTabs[tabIndex];
     if (!currentTab) return;
     updatedTabs[tabIndex] = {
@@ -506,181 +587,280 @@ export default function App() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="app-shell">
-      {/* ── Sidebar ── */}
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">W</span>
-          <span>Workspace <span>Manager</span></span>
+    <div className="modern-app-shell">
+      {/* ── Left Sidebar ── */}
+      <aside className="modern-sidebar">
+        <div className="modern-brand">
+          <span className="modern-brand-logo">W</span>
+          <span className="modern-brand-text">Workspace Manager</span>
         </div>
 
-        {/* Current browser quick-save */}
-        <div className="current-browser">
-          <div className="current-browser-row">
-            <strong>Current Browser</strong>
-            <span className="tab-dots">
-              {currentTabs.slice(0, 3).map((tab, index) => {
-                const fallback = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(tab.url || tab.title)}&sz=24`;
-                return (
-                  <img
-                    key={tab.id ?? index}
-                    src={tab.favicon || fallback}
-                    alt=""
-                    className="tab-favicon"
-                    onError={(e) => {
-                      if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
-                      else e.currentTarget.style.display = "none";
-                    }}
-                  />
-                );
-              })}
-              {currentTabs.length > 3 && <small>+{currentTabs.length - 3}</small>}
-            </span>
-          </div>
-          <span>{currentTabs.length} tabs open · Ready to save</span>
-          <button onClick={handleQuickSave} disabled={saving} type="button">
-            <Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}
+        <nav className="modern-nav" aria-label="Workspace navigation">
+          <button
+            className={`modern-nav-item ${activeNav === "all" ? "is-active" : ""}`}
+            onClick={() => setActiveNav("all")}
+            type="button"
+          >
+            <span className="modern-nav-icon"><Icon name="allspace" /></span>
+            <span className="modern-nav-text">All Workspaces</span>
           </button>
-        </div>
 
-        {/* <div className="sidebar-section">TOOLS <button type="button" onClick={openNewWorkspaceModal}>+</button></div> */}
-        <button className="sidebar-new-btn" onClick={openNewWorkspaceModal} type="button">
-          <Icon name="plus" /> New Workspace
-        </button>
-        <button className="sidebar-export-btn" onClick={handleExportCsv} type="button">
-          <Icon name="download" /> Export CSV
-        </button>
-
-        <nav className="sidebar-nav" aria-label="Workspace navigation">
-          <button className="sidebar-link is-active" type="button">
-            <span><Icon name="allspace" /></span>All Workspaces <b>{sessions.length}</b>
+          <button
+            className={`modern-nav-item ${activeNav === "recent" ? "is-active" : ""}`}
+            onClick={() => setActiveNav("recent")}
+            type="button"
+          >
+            <span className="modern-nav-icon"><Icon name="clock" /></span>
+            <span className="modern-nav-text">Recent</span>
           </button>
-          <button className="sidebar-link" type="button" onClick={() => showToast("Favorites coming soon.")}>
-            <span><Icon name="favorite" /></span>Favorites <b>0</b>
+
+          <button
+            className={`modern-nav-item ${activeNav === "archived" ? "is-active" : ""}`}
+            onClick={() => {
+              setActiveNav("archived");
+              showToast("Archived workspaces coming soon.");
+            }}
+            type="button"
+          >
+            <span className="modern-nav-icon"><Icon name="archive" /></span>
+            <span className="modern-nav-text">Archived</span>
+          </button>
+
+          <div className="modern-nav-divider" />
+
+          <button
+            className={`modern-nav-item ${activeNav === "settings" ? "is-active" : ""}`}
+            onClick={() => {
+              toggleTheme();
+              showToast(`Theme switched to ${theme === "dark" ? "light" : "dark"} mode.`);
+            }}
+            type="button"
+          >
+            <span className="modern-nav-icon"><Icon name="settings" /></span>
+            <span className="modern-nav-text">Settings</span>
           </button>
         </nav>
 
-        <div className="sidebar-stats">
-          {/* <div><strong>{sessions.length}</strong><span>Workspaces</span></div> */}
-          {/* <div><strong>{sessions.reduce((total, s) => total + (s.tabs?.length || 0), 0)}</strong><span>Links</span></div> */}
+        {/* Bottom Extension Card */}
+        <div className="modern-sidebar-card">
+          <strong className="modern-card-title">Browser extension</strong>
+          <p className="modern-card-desc">Save and restore tabs without leaving Chrome.</p>
+          <button
+            className="modern-card-link"
+            onClick={() => {
+              const url = chrome?.runtime?.getURL ? chrome.runtime.getURL("src/pages/popup/index.html") : "/src/pages/popup/index.html";
+              window.open(url, "_blank");
+            }}
+            type="button"
+          >
+            <span>Open popup preview</span>
+            <Icon name="arrowRight" />
+          </button>
         </div>
       </aside>
 
-      {/* ── Main ── */}
-      <main className="page">
+      {/* ── Main Page Content ── */}
+      <div className="modern-main-container">
         {/* Topbar */}
-        <header className="topbar">
-          <label className="topbar-search">
+        <header className="modern-topbar">
+          <div className="modern-topbar-search">
             <Icon name="search" />
             <input
-              className="top-search-input"
-              placeholder="Search workspaces, tabs, tags, notes…"
+              className="modern-search-input"
+              placeholder="Search workspaces..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
-          </label>
-          <select className="toolbar-select input" value={sortKey} onChange={(e) => setSortKey(e.target.value)}>
-            <option value="created-desc">Newest first</option>
-            <option value="opened-desc">Recently opened</option>
-            <option value="name-asc">Name (A–Z)</option>
-          </select>
-          <button className="theme-toggle" onClick={toggleTheme} type="button" aria-label="Toggle theme">
-            <Icon name={theme === "dark" ? "sun" : "moon"} />
-          </button>
-        </header>
+          </div>
 
-        {/* Page header */}
-        <header className="page-header">
-          <div>
-            <span className="eyebrow">WORKSPACE MANAGER</span>
-            <h1>All Workspaces <span className="count-pill">{sessions.length}</span></h1>
-            <p className="subtitle">Save, organise and reopen your tab groups at any time.</p>
+          <div className="modern-topbar-actions">
+            <button
+              className="modern-btn-outline"
+              onClick={openNewWorkspaceModal}
+              type="button"
+            >
+              <Icon name="plus" /> New Workspace
+            </button>
+
+            <button
+              className="modern-btn-purple"
+              onClick={handleQuickSave}
+              disabled={saving}
+              type="button"
+            >
+              <Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}
+            </button>
+
+            <button
+              className="modern-theme-btn"
+              onClick={toggleTheme}
+              type="button"
+              aria-label="Toggle theme"
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              <Icon name={theme === "dark" ? "sun" : "moon"} />
+            </button>
           </div>
         </header>
 
-        {/* Due reminders */}
-        {dueReminders.length > 0 && (
-          <div className="reminder-stack">
-            {dueReminders.map((s) => (
-              <div className="reminder-alert" key={s.id}>
-                <span className="reminder-icon"><Icon name="reminderbell" /></span>
-                <div>
-                  <strong>{s.title}</strong> — reminder due {formatDate(s.reminderAt)}
-                  {s.note ? ` · ${s.note}` : ""}
+        <main className="modern-content">
+          {/* Header */}
+          <div className="modern-page-header">
+            <span className="modern-eyebrow">WORKSPACE LIBRARY</span>
+            <h1 className="modern-main-heading">All Workspaces</h1>
+            <p className="modern-subtitle">
+              Save what you're doing now. Reopen it whenever you need it.
+            </p>
+          </div>
+
+          {/* Due Reminders */}
+          <ReminderStack reminders={dueReminders} onDismiss={dismissReminder} />
+
+          {/* 3 Metric Summary Cards Row */}
+          <section className="modern-summary-grid">
+            {/* Card 1: Current Browser */}
+            <div className="modern-summary-card is-browser">
+              <div className="modern-browser-header">
+                <strong>Current Browser</strong>
+                <div className="modern-browser-favicons">
+                  {currentTabs.slice(0, 5).map((tab, idx) => {
+                    const fallback = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(tab.url || tab.title)}&sz=24`;
+                    return (
+                      <img
+                        key={tab.id ?? idx}
+                        src={tab.favicon || fallback}
+                        alt=""
+                        className="modern-tab-dot-icon"
+                        onError={(e) => {
+                          if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
+                          else e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    );
+                  })}
+                  {currentTabs.length > 5 && (
+                    <span className="modern-favicons-extra">+{currentTabs.length - 5}</span>
+                  )}
                 </div>
-                {/* <span className="reminder-close" ><Icon name="close" /></span> */}
               </div>
-            ))}
-          </div>
-        )}
 
-        {/* Session list */}
-        <div className="final-workspace-list">
-          {loading && <div className="final-empty">Loading…</div>}
+              <span className="modern-browser-meta">
+                {currentTabs.length} tabs open · Ready to save
+              </span>
 
-          {!loading && sessions.length === 0 && (
-            <div className="final-empty-state">
-              <div className="empty-bars" aria-hidden="true"><i /><i /><i /><i /></div>
-              <strong>No workspaces yet</strong>
-              <span>Save your current browser tabs and come back to them anytime.</span>
-              <button className="empty-save" onClick={handleQuickSave} disabled={saving} type="button">
-                <Icon name="plus" /> Save Current Tabs
+              <button
+                className="modern-browser-save-btn"
+                onClick={handleQuickSave}
+                disabled={saving}
+                type="button"
+              >
+                <Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}
               </button>
-              <button className="empty-create" onClick={openNewWorkspaceModal} type="button">Create New Workspace</button>
             </div>
-          )}
 
-          {!loading && sessions.length > 0 && visibleSessions.length === 0 && (
-            <div className="final-empty">No workspaces match your search.</div>
-          )}
+            {/* Card 2: Workspaces */}
+            <div className="modern-summary-card">
+              <span className="modern-card-stat-label">Workspaces</span>
+              <div className="modern-card-stat-val">{sessions.length}</div>
+              <span className="modern-card-stat-sub">
+                {updatedThisWeekCount} updated this week
+              </span>
+            </div>
 
-          {visibleSessions.map((session, index) => (
-            <WorkspaceCard
-              key={session.id}
-              session={session}
-              index={index}
-              expanded={expandedIds.has(session.id)}
-              selectedIndexes={selectedByWorkspace.get(session.id) || new Set()}
-              openMenuId={openMenuId}
-              setOpenMenuId={setOpenMenuId}
-              isDragging={draggedId === session.id}
-              isDragOver={dragOverId === session.id && draggedId !== session.id}
-              onDragStart={() => setDraggedId(session.id)}
-              onDragOver={(e) => { e.preventDefault(); if (dragOverId !== session.id) setDragOverId(session.id); }}
-              onDragLeave={() => setDragOverId((cur) => (cur === session.id ? null : cur))}
-              onDrop={(e) => { e.preventDefault(); handleReorder(draggedId, session.id); setDraggedId(null); setDragOverId(null); }}
-              onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
-              onToggleExpanded={() => toggleExpanded(session.id)}
-              onEditSession={() => renameWorkspace(session)}
-              onDuplicateSession={() => duplicateWorkspace(session)}
-              onExportSession={() => { exportWorkspacesToCsv([session]); showToast("Workspace exported as CSV."); }}
-              onDeleteSession={() => requestDeleteSession(session)}
-              onToggleTabSelection={(tabIndex, checked) => toggleTabSelection(session.id, tabIndex, checked)}
-              onOpenTab={(url, tabIndex) => handleOpenTab(session, tabIndex)}
-              onEditTab={(tabIndex) => openLinkEditor(session, tabIndex)}
-              onDeleteTab={(tabIndex) => requestDeleteTab(session, tabIndex)}
-              onOpenAll={() => handleOpenAll(session)}
-              onOpenNewWindow={() => handleOpenNewWindow(session)}
-              onOpenSelected={() => handleOpenSelected(session)}
-              onOpenSelectedNewWindow={() => handleOpenSelectedNewWindow(session)}
-              onAddCurrentLinks={() => handleAddCurrentLinks(session)}
-              getFaviconUrl={getFaviconUrl}
-              formatDate={formatDate}
-            />
-          ))}
-        </div>
+            {/* Card 3: Saved tabs */}
+            <div className="modern-summary-card">
+              <span className="modern-card-stat-label">Saved tabs</span>
+              <div className="modern-card-stat-val">{totalSavedTabs}</div>
+              <span className="modern-card-stat-sub">Across all workspaces</span>
+            </div>
+          </section>
 
-        {/* New workspace button */}
-        {sessions.length > 0 && (
-          <button className="final-new-workspace" onClick={openNewWorkspaceModal} type="button">
-            <Icon name="plus" /> New Workspace
-          </button>
-        )}
+          {/* Workspaces Section */}
+          <section className="modern-workspaces-section">
+            <div className="modern-section-header">
+              <div>
+                <h2 className="modern-section-title">My Workspaces</h2>
+                <span className="modern-section-meta">
+                  {displayedSessions.length} of {sessions.length} workspaces
+                </span>
+              </div>
 
-        <footer className="final-footer">
-          <span>{sessions.length} workspace{sessions.length === 1 ? "" : "s"}</span>
-        </footer>
-      </main>
+              <button
+                className="modern-empty-ws-btn"
+                onClick={openEmptyWorkspaceModal}
+                type="button"
+              >
+                <Icon name="plus" /> Create Empty Workspace
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="modern-workspace-stack">
+              {loading && <div className="final-empty">Loading workspaces…</div>}
+
+              {!loading && sessions.length === 0 && (
+                <div className="final-empty-state">
+                  <div className="empty-bars" aria-hidden="true"><i /><i /><i /><i /></div>
+                  <strong>No workspaces yet</strong>
+                  <span>Save your current browser tabs and come back to them anytime.</span>
+                  <button className="empty-save" onClick={handleQuickSave} disabled={saving} type="button">
+                    <Icon name="plus" /> Save Current Tabs
+                  </button>
+                  <button className="empty-create" onClick={openEmptyWorkspaceModal} type="button">
+                    Create Empty Workspace
+                  </button>
+                </div>
+              )}
+
+              {!loading && sessions.length > 0 && displayedSessions.length === 0 && (
+                <div className="final-empty">No workspaces match your search.</div>
+              )}
+
+              {displayedSessions.map((session, index) => (
+                <WorkspaceCard
+                  key={session.id}
+                  session={session}
+                  index={index}
+                  expanded={expandedIds.has(session.id)}
+                  selectedIndexes={selectedByWorkspace.get(session.id) || new Set()}
+                  openMenuId={openMenuId}
+                  setOpenMenuId={setOpenMenuId}
+                  isDragging={draggedId === session.id}
+                  isDragOver={dragOverId === session.id && draggedId !== session.id}
+                  onDragStart={() => setDraggedId(session.id)}
+                  onDragOver={(e) => { e.preventDefault(); if (dragOverId !== session.id) setDragOverId(session.id); }}
+                  onDragLeave={() => setDragOverId((cur) => (cur === session.id ? null : cur))}
+                  onDrop={(e) => { e.preventDefault(); handleReorder(draggedId, session.id); setDraggedId(null); setDragOverId(null); }}
+                  onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+                  onToggleExpanded={() => toggleExpanded(session.id)}
+                  onEditSession={() => renameWorkspace(session)}
+                  onDuplicateSession={() => duplicateWorkspace(session)}
+                  onExportSession={() => {
+                    exportWorkspacesToCsv([session]);
+                    showToast("Workspace exported as CSV.");
+                  }}
+                  onDeleteSession={() => requestDeleteSession(session)}
+                  onToggleTabSelection={(tabIndex, checked) => toggleTabSelection(session.id, tabIndex, checked)}
+                  onOpenTab={(url, tabIndex) => handleOpenTab(session, tabIndex)}
+                  onEditTab={(tabIndex) => openLinkEditor(session, tabIndex)}
+                  onDeleteTab={(tabIndex) => requestDeleteTab(session, tabIndex)}
+                  onAddLink={() => openAddLink(session)}
+                  onOpenAll={() => handleOpenAll(session)}
+                  onOpenNewWindow={() => handleOpenNewWindow(session)}
+                  onOpenSelected={() => handleOpenSelected(session)}
+                  onOpenSelectedNewWindow={() => handleOpenSelectedNewWindow(session)}
+                  onAddCurrentLinks={() => handleAddCurrentLinks(session)}
+                  getFaviconUrl={getFaviconUrl}
+                />
+              ))}
+            </div>
+          </section>
+
+          <footer className="modern-footer">
+            <span>{sessions.length} workspace{sessions.length === 1 ? "" : "s"} · {totalSavedTabs} saved tabs</span>
+          </footer>
+        </main>
+      </div>
 
       {/* ── New / Edit workspace modal ── */}
       {newWorkspaceOpen && (
