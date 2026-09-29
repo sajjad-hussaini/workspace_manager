@@ -48,6 +48,7 @@ export default function App() {
 
   // Edit link modal
   const [editingLink, setEditingLink] = useState(null);
+  const isAddingLink = editingLink?.tabIndex === -1;
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [linkNote, setLinkNote] = useState("");
@@ -926,16 +927,22 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Edit link modal ── */}
+      {/* ── Add / Edit link modal ── */}
       {editingLink && (
         <div className="new-workspace-backdrop" onClick={closeLinkEditor} role="presentation">
           <form
             className="new-workspace-dialog link-edit-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="link-dialog-title"
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => { e.preventDefault(); saveLinkEditor(); }}
           >
             <div className="new-workspace-title-row">
-              <div><h2>Edit Link</h2><p>Update this saved link's details.</p></div>
+              <div>
+                <h2 id="link-dialog-title">{isAddingLink ? "Add Link" : "Edit Link"}</h2>
+                <p>{isAddingLink ? `Add a new link to "${editingLink.session.title}".` : "Update this saved link's details."}</p>
+              </div>
               <button onClick={closeLinkEditor} type="button" aria-label="Close"><Icon name="close" /></button>
             </div>
             <label>Title<input value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} placeholder="Link title" autoFocus /></label>
@@ -945,7 +952,7 @@ export default function App() {
             <label>Reminder <span>(optional)</span><input type="datetime-local" value={linkReminderAt} onChange={(e) => setLinkReminderAt(e.target.value)} /></label>
             <div className="new-workspace-actions">
               <button className="new-workspace-cancel" onClick={closeLinkEditor} type="button">Cancel</button>
-              <button className="new-workspace-save" type="submit">Save Changes</button>
+              <button className="new-workspace-save" type="submit">{isAddingLink ? "Add Link" : "Save Changes"}</button>
             </div>
           </form>
         </div>

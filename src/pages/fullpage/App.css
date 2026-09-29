@@ -3,6 +3,7 @@
    Matching Design Mockup
 ───────────────────────────────────────────── */
 :root {
+  scrollbar-gutter: stable;
   --primary: #8b5cf6;
   --primary-hover: #7c3aed;
   --primary-light: #f5f3ff;
@@ -1580,6 +1581,29 @@
 /* ─────────────────────────────────────────────
    New/Edit workspace modal
 ───────────────────────────────────────────── */
+/* Lock the page for every modal; closing it restores normal scrolling. */
+html:has(.new-workspace-backdrop, .dialog-backdrop),
+body:has(.new-workspace-backdrop, .dialog-backdrop) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.new-workspace-backdrop,
+.dialog-backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.new-workspace-dialog,
+.dialog {
+  min-height: 0;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .new-workspace-backdrop {
   position: fixed;
   inset: 0;
