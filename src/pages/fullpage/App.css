@@ -1069,6 +1069,26 @@
   background: #3b2b59;
 }
 
+.modern-selection-btn.is-danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.modern-selection-btn.is-danger:hover {
+  background: #ffe4e6;
+}
+
+:root[data-theme="dark"] .modern-selection-btn.is-danger {
+  background: #35202a;
+  border-color: #653044;
+  color: #fda4af;
+}
+
+:root[data-theme="dark"] .modern-selection-btn.is-danger:hover {
+  background: #482735;
+}
+
 /* Split Open Button */
 .modern-split-btn-container {
   display: inline-flex;

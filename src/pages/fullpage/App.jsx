@@ -357,6 +357,40 @@ export default function App() {
     });
   }
 
+  function requestDeleteSelected(session) {
+    const selected = new Set(selectedByWorkspace.get(session.id) || []);
+    const tabs = session.tabs || [];
+    const count = tabs.filter((_, index) => selected.has(index)).length;
+    if (!count) return showToast("Select at least one link first.");
+
+    let deleting = false;
+    setConfirmState({
+      title: `Delete ${count} selected link${count === 1 ? "" : "s"}?`,
+      message: `The selected links will be permanently removed from "${session.title}".`,
+      onConfirm: async () => {
+        if (deleting) return;
+        deleting = true;
+        try {
+          await persistSession({ ...session, tabs: tabs.filter((_, index) => !selected.has(index)) });
+          setSelectedByWorkspace((prev) => {
+            const next = new Map(prev);
+            next.delete(session.id);
+            return next;
+          });
+          setOpenMenuId(null);
+          setConfirmState(null);
+          await refresh();
+          showToast(`${count} link${count === 1 ? "" : "s"} deleted.`);
+        } catch (error) {
+          console.error("Failed to delete selected links:", error);
+          showToast("Could not delete selected links. Please try again.");
+        } finally {
+          deleting = false;
+        }
+      }
+    });
+  }
+
   // ── Expand ────────────────────────────────────────────────────────────────
 
   function toggleExpanded(sessionId) {
@@ -849,6 +883,7 @@ export default function App() {
                   onOpenNewWindow={() => handleOpenNewWindow(session)}
                   onOpenSelected={() => handleOpenSelected(session)}
                   onOpenSelectedNewWindow={() => handleOpenSelectedNewWindow(session)}
+                  onDeleteSelected={() => requestDeleteSelected(session)}
                   onAddCurrentLinks={() => handleAddCurrentLinks(session)}
                   getFaviconUrl={getFaviconUrl}
                 />

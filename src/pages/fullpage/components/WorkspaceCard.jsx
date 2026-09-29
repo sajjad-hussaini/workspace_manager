@@ -86,6 +86,7 @@ export default function WorkspaceCard({
   onOpenNewWindow,
   onOpenSelected,
   onOpenSelectedNewWindow,
+  onDeleteSelected,
   getFaviconUrl,
 }) {
   const tabs = Array.isArray(session.tabs) ? session.tabs : [];
@@ -278,14 +279,17 @@ export default function WorkspaceCard({
         </div>
       </div>
 
-      {selectedCount > 0 && (
-        <div className="modern-selection-actions" role="group" aria-label="Open selected links">
+      {expanded && selectedCount > 0 && (
+        <div className="modern-selection-actions" role="group" aria-label="Selected link actions">
           <span className="modern-selection-count" role="status">{selectedCount} selected</span>
           <button className="modern-selection-btn" onClick={onOpenSelected} type="button">
             <Icon name="external" /> Open selected in current window
           </button>
           <button className="modern-selection-btn" onClick={onOpenSelectedNewWindow} type="button">
             <Icon name="window" /> Open selected in new window
+          </button>
+          <button className="modern-selection-btn is-danger" onClick={onDeleteSelected} type="button">
+            <Icon name="trash" /> Delete selected
           </button>
         </div>
       )}
