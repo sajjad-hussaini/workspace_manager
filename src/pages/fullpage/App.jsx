@@ -95,7 +95,7 @@ export default function App() {
   useEffect(() => {
     if (!openMenuId) return undefined;
     function close(event) {
-      if (!event.target.closest(".final-card-actions, .final-menu")) {
+      if (!event.target.closest(".modern-more-menu-container")) {
         setOpenMenuId(null);
       }
     }

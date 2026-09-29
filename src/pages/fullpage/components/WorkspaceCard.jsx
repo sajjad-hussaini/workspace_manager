@@ -1,6 +1,63 @@
 import { useState, useRef, useEffect } from "react";
 import { Icon, LinkFavicon } from "./Icons";
 
+function LinkOptions({ menuId, label, openMenuId, setOpenMenuId, onDelete }) {
+  const isOpen = openMenuId === menuId;
+  const triggerRef = useRef(null);
+  const deleteRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) deleteRef.current?.focus();
+  }, [isOpen]);
+
+  return (
+    <div
+      className="modern-more-menu-container"
+      onBlur={(event) => {
+        if (isOpen && !event.currentTarget.contains(event.relatedTarget)) setOpenMenuId(null);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && isOpen) {
+          event.preventDefault();
+          setOpenMenuId(null);
+          triggerRef.current?.focus();
+        }
+      }}
+    >
+      <button
+        ref={triggerRef}
+        className="modern-link-action-btn modern-link-more-btn"
+        onClick={() => setOpenMenuId(isOpen ? null : menuId)}
+        type="button"
+        aria-label={`More options for ${label}`}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? menuId : undefined}
+        title="Link options"
+      >
+        <Icon name="more" />
+      </button>
+      {isOpen && (
+        <div className="modern-dropdown-menu modern-link-menu" id={menuId} role="menu" aria-label="Link options">
+          <button
+            ref={deleteRef}
+            className="is-danger"
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpenMenuId(null);
+              triggerRef.current?.focus();
+              onDelete();
+            }}
+          >
+            <Icon name="trash" /> Delete link
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WorkspaceCard({
   session,
   index = 0,
@@ -34,6 +91,7 @@ export default function WorkspaceCard({
   const tabs = Array.isArray(session.tabs) ? session.tabs : [];
   const selectedCount = tabs.filter((_, tabIndex) => selectedIndexes.has(tabIndex)).length;
   const isMenuOpen = openMenuId === session.id;
+  const isLinkMenuOpen = tabs.some((_, tabIndex) => openMenuId === `link:${session.id}:${tabIndex}`);
   const [openDropdownActive, setOpenDropdownActive] = useState(false);
   const openMenuRef = useRef(null);
 
@@ -74,7 +132,7 @@ export default function WorkspaceCard({
   const updatedDateText = formatRelativeDate(session.lastOpenedAt || session.createdAt);
 
   return (
-    <article className={`modern-ws-card ${expanded ? "is-expanded" : ""} ${isMenuOpen || openDropdownActive ? "has-open-menu" : ""}`}>
+    <article className={`modern-ws-card ${expanded ? "is-expanded" : ""} ${isMenuOpen || isLinkMenuOpen || openDropdownActive ? "has-open-menu" : ""}`}>
       {/* Top purple accent line */}
       <div className="modern-ws-accent-bar" />
 
@@ -278,6 +336,14 @@ export default function WorkspaceCard({
                     </div>
                   </button>
 
+                  {Array.isArray(tab.tags) && tab.tags.length > 0 && (
+                    <div className="modern-link-tags" aria-label="Link tags">
+                      {tab.tags.map((tag, tagIndex) => (
+                        <span className="modern-link-tag" key={tagIndex} title={tag}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="modern-link-actions">
                     <button
                       className="modern-link-action-btn"
@@ -288,15 +354,13 @@ export default function WorkspaceCard({
                     >
                       <Icon name="edit" />
                     </button>
-                    <button
-                      className="modern-link-action-btn is-delete"
-                      onClick={() => onDeleteTab(tabIndex)}
-                      type="button"
-                      aria-label="Delete link"
-                      title="Delete link"
-                    >
-                      <Icon name="trash" />
-                    </button>
+                    <LinkOptions
+                      menuId={`link:${session.id}:${tabIndex}`}
+                      label={tab.title || tab.url}
+                      openMenuId={openMenuId}
+                      setOpenMenuId={setOpenMenuId}
+                      onDelete={() => onDeleteTab(tabIndex)}
+                    />
                   </div>
                 </div>
               ))}
