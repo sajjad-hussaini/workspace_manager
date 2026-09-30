@@ -1113,14 +1113,15 @@
 }
 
 .modern-selection-actions {
-  background-color: #f4f1f8;
+  background-color: var(--primary-light);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   max-width: 100%;
-  padding: 10px 18px;
-  border-top: 1px solid var(--slate-100);
+  min-height: 42px;
+  padding: 5px 18px;
+  border-bottom: 1px solid #ede9fe;
 }
 
 .modern-selection-actions .modern-selection-count {
@@ -1128,14 +1129,35 @@
 }
 
 :root[data-theme="dark"] .modern-selection-actions {
-  border-top-color: #262936;
+  background: #211b32;
+  border-bottom-color: #35294d;
+}
+
+.modern-clear-selection {
+  display: grid;
+  place-items: center;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+}
+
+.modern-clear-selection svg {
+  width: 14px;
+  height: 14px;
+}
+
+.modern-clear-selection:hover {
+  background: var(--primary-hover);
 }
 
 .modern-selection-count {
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--primary-light);
-  color: var(--primary-hover);
+  color: var(--primary);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
@@ -1163,12 +1185,17 @@
   background: var(--primary-border);
 }
 
-.modern-selection-btn:focus-visible {
+.modern-selection-btn:focus-visible,
+.modern-clear-selection:focus-visible,
+.modern-link-row .ws-link-check:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
-:root[data-theme="dark"] .modern-selection-count,
+:root[data-theme="dark"] .modern-selection-count {
+  color: #d8caff;
+}
+
 :root[data-theme="dark"] .modern-selection-btn {
   background: #29213f;
   border-color: #4c3970;
@@ -1491,6 +1518,8 @@
 }
 
 .modern-link-row .ws-link-check {
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
   margin: 0;
   accent-color: var(--primary);
@@ -1502,6 +1531,23 @@
 
 :root[data-theme="dark"] .modern-link-row:hover {
   background: #1b1e2a;
+}
+
+.modern-link-row.is-selected {
+  background: #faf8ff;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.modern-link-row.is-selected:hover {
+  background: var(--primary-light);
+}
+
+:root[data-theme="dark"] .modern-link-row.is-selected {
+  background: #1e192c;
+}
+
+:root[data-theme="dark"] .modern-link-row.is-selected:hover {
+  background: #29213f;
 }
 
 .modern-link-main {

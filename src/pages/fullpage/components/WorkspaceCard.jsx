@@ -295,17 +295,30 @@ export default function WorkspaceCard({
               <Icon name="plus" /> Add Link
             </button>
           </div>
-          {expanded && selectedCount > 0 && (
+          {selectedCount > 0 && (
               <div className="modern-selection-actions" role="group" aria-label="Selected link actions">
+                <button
+                  className="modern-clear-selection"
+                  type="button"
+                  aria-label="Clear link selection"
+                  title="Clear selection"
+                  onClick={() => tabs.forEach((_, tabIndex) => {
+                    if (selectedIndexes.has(tabIndex)) onToggleTabSelection(tabIndex, false);
+                  })}
+                >
+                  <svg viewBox="0 0 14 14" aria-hidden="true">
+                    <path d="M4 7h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
                 <span className="modern-selection-count" role="status">{selectedCount} selected</span>
                 <button className="modern-selection-btn" onClick={onOpenSelected} type="button">
-                  <Icon name="external" /> current window
+                  <Icon name="external" />Open Current Window
                 </button>
                 <button className="modern-selection-btn" onClick={onOpenSelectedNewWindow} type="button">
-                  <Icon name="window" /> new window
+                  <Icon name="window" />Open New Window
                 </button>
-                <button className="modern-selection-btn is-danger" onClick={onDeleteSelected} type="button">
-                  <Icon name="trash" />
+                <button className="modern-selection-btn is-danger" onClick={onDeleteSelected} type="button" aria-label="Delete selected links">
+                  <Icon name="trash" /> Delete Selected 
                 </button>
               </div>
             )}
@@ -318,7 +331,7 @@ export default function WorkspaceCard({
           ) : (
             <div className="modern-links-list">
               {tabs.map((tab, tabIndex) => (
-                <div className="modern-link-row" key={`${session.id}-${tabIndex}`}>
+                <div className={`modern-link-row${selectedIndexes.has(tabIndex) ? " is-selected" : ""}`} key={`${session.id}-${tabIndex}`}>
                   <input
                     type="checkbox"
                     className="ws-link-check"
