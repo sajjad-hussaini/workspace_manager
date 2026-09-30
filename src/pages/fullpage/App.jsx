@@ -798,7 +798,7 @@ export default function App() {
               <span className="modern-card-stat-label">Workspaces</span>
               <div className="modern-card-stat-val">{sessions.length}</div>
               <span className="modern-card-stat-sub">
-                {updatedThisWeekCount} updated this week
+                {sessions.length === 0 ? "Ready for your first workspace" : `${updatedThisWeekCount} updated this week`}
               </span>
             </div>
 
@@ -834,17 +834,35 @@ export default function App() {
               {loading && <div className="final-empty">Loading workspaces…</div>}
 
               {!loading && sessions.length === 0 && (
-                <div className="final-empty-state">
-                  <div className="empty-bars" aria-hidden="true"><i /><i /><i /><i /></div>
-                  <strong>No workspaces yet</strong>
-                  <span>Save your current browser tabs and come back to them anytime.</span>
-                  <button className="empty-save" onClick={handleQuickSave} disabled={saving} type="button">
-                    <Icon name="plus" /> Save Current Tabs
-                  </button>
-                  <button className="empty-create" onClick={openEmptyWorkspaceModal} type="button">
-                    Create Empty Workspace
-                  </button>
-                </div>
+                <section className="workspace-empty-state" aria-labelledby="workspace-empty-title">
+                  <svg className="workspace-empty-art" viewBox="0 0 144 104" fill="none" aria-hidden="true">
+                    <ellipse cx="72" cy="94" rx="53" ry="6" fill="var(--empty-art-shadow)" />
+                    <rect x="12" y="29" width="91" height="61" rx="8" transform="rotate(-7 12 29)" fill="var(--empty-art-back)" stroke="var(--empty-art-border)" />
+                    <g transform="rotate(6 83 46)">
+                      <rect x="43" y="11" width="86" height="67" rx="8" fill="var(--empty-art-front)" stroke="var(--empty-art-border)" />
+                      <path d="M44 29H128" stroke="var(--empty-art-border)" />
+                      <rect x="52" y="18" width="16" height="4" rx="2" fill="#a78bfa" />
+                      <rect x="73" y="18" width="12" height="4" rx="2" fill="#2dd4bf" />
+                      <rect x="90" y="18" width="9" height="4" rx="2" fill="#fbbf24" />
+                      <rect x="54" y="39" width="53" height="4" rx="2" fill="var(--empty-art-line)" />
+                      <rect x="54" y="49" width="39" height="4" rx="2" fill="var(--empty-art-line)" />
+                      <rect x="54" y="59" width="47" height="4" rx="2" fill="var(--empty-art-line)" />
+                    </g>
+                    <rect x="57" y="62" width="38" height="36" rx="11" fill="#8b5cf6" />
+                    <rect x="67" y="72" width="18" height="15" rx="3" stroke="white" strokeWidth="1.5" />
+                    <path d="M67 77H85M71 74.5H73" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  <h3 id="workspace-empty-title">No workspaces yet</h3>
+                  <p>Save your open tabs as a workspace, or create an empty one and add links later.</p>
+                  <div className="workspace-empty-actions">
+                    <button className="workspace-empty-save" onClick={handleQuickSave} disabled={saving} type="button">
+                      <Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}
+                    </button>
+                    <button className="workspace-empty-create" onClick={openEmptyWorkspaceModal} type="button">
+                      Create Workspace
+                    </button>
+                  </div>
+                </section>
               )}
 
               {!loading && sessions.length > 0 && displayedSessions.length === 0 && (

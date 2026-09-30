@@ -279,21 +279,6 @@ export default function WorkspaceCard({
         </div>
       </div>
 
-      {expanded && selectedCount > 0 && (
-        <div className="modern-selection-actions" role="group" aria-label="Selected link actions">
-          <span className="modern-selection-count" role="status">{selectedCount} selected</span>
-          <button className="modern-selection-btn" onClick={onOpenSelected} type="button">
-            <Icon name="external" /> Open selected in current window
-          </button>
-          <button className="modern-selection-btn" onClick={onOpenSelectedNewWindow} type="button">
-            <Icon name="window" /> Open selected in new window
-          </button>
-          <button className="modern-selection-btn is-danger" onClick={onDeleteSelected} type="button">
-            <Icon name="trash" /> Delete selected
-          </button>
-        </div>
-      )}
-
       {/* Expanded Links Section */}
       {expanded && (
         <div className="modern-ws-body">
@@ -310,6 +295,20 @@ export default function WorkspaceCard({
               <Icon name="plus" /> Add Link
             </button>
           </div>
+          {expanded && selectedCount > 0 && (
+              <div className="modern-selection-actions" role="group" aria-label="Selected link actions">
+                <span className="modern-selection-count" role="status">{selectedCount} selected</span>
+                <button className="modern-selection-btn" onClick={onOpenSelected} type="button">
+                  <Icon name="external" /> current window
+                </button>
+                <button className="modern-selection-btn" onClick={onOpenSelectedNewWindow} type="button">
+                  <Icon name="window" /> new window
+                </button>
+                <button className="modern-selection-btn is-danger" onClick={onDeleteSelected} type="button">
+                  <Icon name="trash" />
+                </button>
+              </div>
+            )}
 
           {/* Links List */}
           {tabs.length === 0 ? (
