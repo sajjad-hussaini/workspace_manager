@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { moveWorkspace, moveLink } from "../../lib/dragDrop";
+import { beginPointerDrag } from "../../lib/pointerDrag";
 import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme } from "../../lib/storage";
 import {
   getCurrentTabs,
@@ -16,7 +17,7 @@ import Toast from "./components/Toast";
 import ReminderStack from "./components/ReminderStack";
 import { Icon } from "./components/Icons";
 
-export default function App() {
+export default function App({ popup = false }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentTabs, setCurrentTabs] = useState([]);
@@ -45,6 +46,9 @@ export default function App() {
   const dragRef = useRef(null);
   const dropRef = useRef(null);
   const movingRef = useRef(false);
+  const pointerCleanup = useRef(null);
+
+  useEffect(() => () => pointerCleanup.current?.(), []);
 
   // New / Edit workspace modal
   const [newWorkspaceOpen, setNewWorkspaceOpen] = useState(false);
@@ -300,6 +304,24 @@ export default function App() {
     await markOpened(session.id, [tabIndex]);
     await chrome.tabs.create({ url: tab.url, active: false });
     await refresh();
+  }
+
+  async function handleAddCurrentLinks(session) {
+    try {
+      const current = await getCurrentTabs();
+      const existingKeys = new Set((session.tabs || []).map((tab) => getLinkKey(tab.url)));
+      const added = getUniqueTabs(current).filter((tab) => !existingKeys.has(getLinkKey(tab.url)));
+      if (!added.length) {
+        showToast(current.length ? "All open links are already in this workspace." : "No valid links are open in this window.");
+        return;
+      }
+      await persistSession({ ...session, tabs: [...(session.tabs || []), ...added] });
+      await refresh();
+      showToast(`${added.length} link${added.length === 1 ? "" : "s"} added to "${session.title}".`);
+    } catch (error) {
+      console.error("Could not add current links:", error);
+      showToast("Could not add current links. Please try again.");
+    }
   }
  function getSelected(session) {
     const selected = selectedByWorkspace.get(session.id) || new Set();
@@ -612,6 +634,29 @@ export default function App() {
     setTimeout(() => preview.remove(), 0);
   }
 
+  function startPointerDrag(event, item, label) {
+    if (movingRef.current || event.button !== 0 || event.isPrimary === false) return;
+    event.stopPropagation();
+    pointerCleanup.current?.();
+    pointerCleanup.current = beginPointerDrag(event, {
+      item,
+      label,
+      onStart: () => {
+        dragRef.current = item;
+        setDragItem(item);
+        setOpenMenuId(null);
+      },
+      onTarget: (target) => {
+        dropRef.current = target;
+        setDropTarget(target);
+      },
+      onFinish: (target) => {
+        endDrag();
+        if (target) void commitDrop(item, target);
+      },
+    });
+  }
+
   function hoverDrop(event, sessionId, tabIndex) {
     const item = dragRef.current;
     if (!item) return;
@@ -716,16 +761,44 @@ export default function App() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  async function openFullManager() {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("src/pages/fullpage/index.html") });
+    window.close();
+  }
+
+  const searchField = (
+    <div className="modern-topbar-search">
+      <Icon name="search" />
+      <input
+        className="modern-search-input"
+        aria-label="Search workspaces"
+        placeholder={popup ? "Search workspaces and tabs..." : "Search workspaces..."}
+        value={searchInput}
+        onChange={(event) => setSearchInput(event.target.value)}
+      />
+    </div>
+  );
+
   return (
-    <div className="modern-app-shell">
+    <div className={`modern-app-shell${popup ? " modern-popup-shell" : ""}`}>
       {/* ── Left Sidebar ── */}
       <aside className="modern-sidebar">
         <div className="modern-brand">
           <span className="modern-brand-logo">W</span>
           <span className="modern-brand-text">Workspace Manager</span>
+          {popup && (
+            <div className="modern-popup-header-actions">
+              <button className="modern-theme-btn" type="button" onClick={toggleTheme} aria-label="Toggle theme" title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+                <Icon name="settings" />
+              </button>
+              <button className="modern-theme-btn" type="button" onClick={openFullManager} aria-label="Open full view" title="Open full view">
+                <Icon name="external" />
+              </button>
+            </div>
+          )}
         </div>
 
-        <nav className="modern-nav" aria-label="Workspace navigation">
+        {!popup && <nav className="modern-nav" aria-label="Workspace navigation">
           <button
             className={`modern-nav-item ${activeNav === "all" ? "is-active" : ""}`}
             onClick={() => setActiveNav("all")}
@@ -769,10 +842,10 @@ export default function App() {
             <span className="modern-nav-icon"><Icon name="settings" /></span>
             <span className="modern-nav-text">Settings</span>
           </button>
-        </nav>
+        </nav>}
 
         {/* Bottom Extension Card */}
-        <div className="modern-sidebar-card">
+        {!popup && <div className="modern-sidebar-card">
           <strong className="modern-card-title">Browser extension</strong>
           <p className="modern-card-desc">Save and restore tabs without leaving Chrome.</p>
           <button
@@ -786,22 +859,14 @@ export default function App() {
             <span>Open popup preview</span>
             <Icon name="arrowRight" />
           </button>
-        </div>
+        </div>}
       </aside>
 
       {/* ── Main Page Content ── */}
       <div className="modern-main-container">
         {/* Topbar */}
-        <header className="modern-topbar">
-          <div className="modern-topbar-search">
-            <Icon name="search" />
-            <input
-              className="modern-search-input"
-              placeholder="Search workspaces..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
+        {!popup && <header className="modern-topbar">
+          {searchField}
 
           <div className="modern-topbar-actions">
             <button
@@ -831,17 +896,17 @@ export default function App() {
               <Icon name={theme === "dark" ? "sun" : "moon"} />
             </button>
           </div>
-        </header>
+        </header>}
 
         <main className="modern-content">
           {/* Header */}
-          <div className="modern-page-header">
+          {!popup && <div className="modern-page-header">
             <span className="modern-eyebrow">WORKSPACE LIBRARY</span>
             <h1 className="modern-main-heading">All Workspaces</h1>
             <p className="modern-subtitle">
               Save what you're doing now. Reopen it whenever you need it.
             </p>
-          </div>
+          </div>}
 
           {/* Due Reminders */}
           <ReminderStack reminders={dueReminders} onDismiss={dismissReminder} />
@@ -875,7 +940,7 @@ export default function App() {
               </div>
 
               <span className="modern-browser-meta">
-                {currentTabs.length} tabs open · Ready to save
+                {currentTabs.length} tabs open{!popup && " · Ready to save"}
               </span>
 
               <button
@@ -889,6 +954,7 @@ export default function App() {
             </div>
 
             {/* Card 2: Workspaces */}
+            {!popup && <>
             <div className="modern-summary-card">
               <span className="modern-card-stat-label">Workspaces</span>
               <div className="modern-card-stat-val">{sessions.length}</div>
@@ -903,31 +969,36 @@ export default function App() {
               <div className="modern-card-stat-val">{totalSavedTabs}</div>
               <span className="modern-card-stat-sub">Across all workspaces</span>
             </div>
+            </>}
           </section>
+
+          {popup && <div className="modern-popup-search">{searchField}</div>}
 
           {/* Workspaces Section */}
           <section className="modern-workspaces-section">
             <div className="modern-section-header">
               <div>
                 <h2 className="modern-section-title">My Workspaces</h2>
-                <span className="modern-section-meta">
+                {!popup && <span className="modern-section-meta">
                   {displayedSessions.length} of {sessions.length} workspaces
-                </span>
+                </span>}
               </div>
 
-              <button
+              {popup ? (
+                <button className="modern-card-link" onClick={openFullManager} type="button">View all <Icon name="arrowRight" /></button>
+              ) : <button
                 className="modern-empty-ws-btn"
                 onClick={openEmptyWorkspaceModal}
                 type="button"
               >
                 <Icon name="plus" /> Create Empty Workspace
-              </button>
+              </button>}
             </div>
 
-            <div className={`modern-drag-hint ${dragItem ? "is-active" : ""}`} role="status">
+            {(!popup || dragItem) && <div className={`modern-drag-hint ${dragItem ? "is-active" : ""}`} role="status">
               <Icon name={dragItem ? "move" : "grip"} />
               <span>{dragItem?.type === "link" ? "Drop between links to reorder, or into another workspace to move." : dragItem ? "Drop above or below a workspace to reorder." : "Drag to organize workspaces and move links between them."}</span>
-            </div>
+            </div>}
             {/* List */}
             <div className="modern-workspace-stack">
               {loading && <div className="final-empty">Loading workspaces…</div>}
@@ -977,6 +1048,10 @@ export default function App() {
                   selectedIndexes={selectedByWorkspace.get(session.id) || new Set()}
                   openMenuId={openMenuId}
                   setOpenMenuId={setOpenMenuId}
+                  pointerDrag={popup}
+                  onPointerDragStart={(event, tabIndex) => startPointerDrag(event, tabIndex == null
+                    ? { type: "workspace", sessionId: session.id }
+                    : { type: "link", sessionId: session.id, index: tabIndex }, tabIndex == null ? session.title : session.tabs[tabIndex].title || session.tabs[tabIndex].url)}
                   dragItem={dragItem}
                   dropTarget={dropTarget?.sessionId === session.id ? dropTarget : null}
                   onDragStart={(event, tabIndex) => startDrag(event, tabIndex == null
@@ -1016,6 +1091,13 @@ export default function App() {
               ))}
             </div>
           </section>
+
+          {popup && (
+            <div className="modern-popup-create-actions">
+              <button className="modern-btn-outline" onClick={openNewWorkspaceModal} type="button"><Icon name="plus" /> New Workspace</button>
+              <button className="modern-empty-ws-btn" onClick={openEmptyWorkspaceModal} type="button"><Icon name="plus" /> Create Empty Workspace</button>
+            </div>
+          )}
 
           <footer className="modern-footer">
             <span>{sessions.length} workspace{sessions.length === 1 ? "" : "s"} · {totalSavedTabs} saved tabs</span>

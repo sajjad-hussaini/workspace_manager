@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Icon, LinkFavicon } from "./Icons";
+import TagList from "./TagList";
 
 function LinkOptions({ menuId, label, openMenuId, setOpenMenuId, onDelete }) {
   const isOpen = openMenuId === menuId;
@@ -65,6 +66,8 @@ export default function WorkspaceCard({
   selectedIndexes = new Set(),
   openMenuId,
   setOpenMenuId,
+  pointerDrag = false,
+  onPointerDragStart,
   dragItem,
   dropTarget,
   onDragStart,
@@ -83,6 +86,7 @@ export default function WorkspaceCard({
   onEditTab,
   onDeleteTab,
   onAddLink,
+  onAddCurrentLinks,
   onOpenAll,
   onOpenNewWindow,
   onOpenSelected,
@@ -143,6 +147,8 @@ export default function WorkspaceCard({
 
   return (
     <article
+      data-workspace-id={session.id}
+      data-link-count={tabs.length}
       className={`modern-ws-card ${expanded ? "is-expanded" : ""} ${isMenuOpen || isLinkMenuOpen || openDropdownActive ? "has-open-menu" : ""} ${isDragging ? "is-dragging" : ""} ${workspaceDropEdge ? `drop-${workspaceDropEdge}` : ""} ${isLinkTarget ? "is-link-drop-target" : ""}`}
       onDragOver={(event) => onDragOver(event)}
       onDragLeave={onDragLeave}
@@ -156,14 +162,17 @@ export default function WorkspaceCard({
       <div className="modern-ws-header">
         <button
           className="modern-drag-handle modern-workspace-drag-handle"
-          draggable
+          draggable={!pointerDrag}
+          onPointerDown={pointerDrag ? (event) => onPointerDragStart(event) : undefined}
           type="button"
           aria-label={`Reorder ${session.title}`}
           title="Drag workspace to reorder · Alt + ↑ / ↓"
           onDragStart={(event) => onDragStart(event)}
           onKeyDown={(event) => onKeyboardMove(event)}
         ><Icon name="grip" /></button>
-        <div className="modern-ws-info" onClick={onToggleExpanded} onKeyDown={(event) => {
+        <div className="modern-ws-info"
+          onPointerDown={pointerDrag ? (event) => onPointerDragStart(event) : undefined}
+          onClick={onToggleExpanded} onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onToggleExpanded(); }
         }} role="button" tabIndex={0}>
           <h3 className="modern-ws-title">{session.title}</h3>
@@ -262,6 +271,15 @@ export default function WorkspaceCard({
 
             {isMenuOpen && (
               <div className="modern-dropdown-menu" role="menu">
+                <button
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    onAddCurrentLinks();
+                  }}
+                  type="button"
+                >
+                  <Icon name="plus" /> <span>Add Current Links</span>
+                </button>
                 <button
                   onClick={() => {
                     setOpenMenuId(null);
@@ -365,6 +383,7 @@ export default function WorkspaceCard({
             <div className="modern-links-list">
               {tabs.map((tab, tabIndex) => (
                 <div
+                  data-link-index={tabIndex}
                   className={`modern-link-row${selectedIndexes.has(tabIndex) ? " is-selected" : ""}${isLinkDrag && dragItem.sessionId === session.id && dragItem.index === tabIndex ? " is-dragging" : ""}${isLinkTarget && dropTarget.index === tabIndex ? " drop-before" : ""}${isLinkTarget && dropTarget.index === tabs.length && tabIndex === tabs.length - 1 ? " drop-after" : ""}`}
                   key={`${session.id}-${tabIndex}`}
                   onDragOver={(event) => { if (isLinkDrag) onDragOver(event, tabIndex); }}
@@ -378,7 +397,8 @@ export default function WorkspaceCard({
                   />
                   <button
                     className="modern-drag-handle modern-link-drag-handle"
-                    draggable
+                    draggable={!pointerDrag}
+                    onPointerDown={pointerDrag ? (event) => onPointerDragStart(event, tabIndex) : undefined}
                     type="button"
                     aria-label={`Move ${tab.title || tab.url}`}
                     title="Drag to reorder or move to another workspace · Alt + ↑ / ↓"
@@ -387,6 +407,8 @@ export default function WorkspaceCard({
                   ><Icon name="grip" /></button>
                   <button
                     className="modern-link-main"
+                    onPointerDown={pointerDrag ? (event) => onPointerDragStart(event, tabIndex) : undefined}
+                    onDragStart={pointerDrag ? (event) => event.preventDefault() : undefined}
                     onClick={() => onOpenTab(tab.url, tabIndex)}
                     type="button"
                     title={`Open ${tab.title || tab.url}`}
@@ -399,11 +421,7 @@ export default function WorkspaceCard({
                   </button>
 
                   {Array.isArray(tab.tags) && tab.tags.length > 0 && (
-                    <div className="modern-link-tags" aria-label="Link tags">
-                      {tab.tags.map((tag, tagIndex) => (
-                        <span className="modern-link-tag" key={tagIndex} title={tag}>{tag}</span>
-                      ))}
-                    </div>
+                    <TagList tags={tab.tags} className="modern-link-tags" label="Link tags" />
                   )}
 
                   <div className="modern-link-actions">
