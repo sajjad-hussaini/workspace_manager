@@ -1032,7 +1032,7 @@
 
 .modern-ws-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
@@ -1499,6 +1499,7 @@
 }
 
 .modern-link-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1540,6 +1541,127 @@
 
 .modern-link-row.is-selected:hover {
   background: var(--primary-light);
+}
+
+/* Drag handles stay visible without competing with link titles. */
+.modern-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--slate-300);
+  cursor: grab;
+  transition: color .15s ease, background .15s ease;
+}
+
+.modern-workspace-drag-handle { width: 24px; height: 32px; margin-left: -6px; }
+.modern-link-drag-handle { width: 14px; height: 26px; margin: 0 -3px; }
+.modern-link-drag-handle .ui-icon { width: 12px; height: 16px; flex-basis: 12px; }
+.modern-ws-header:hover .modern-drag-handle,
+.modern-link-row:hover .modern-drag-handle { color: var(--slate-500); }
+.modern-drag-handle:hover,
+.modern-drag-handle:focus-visible { color: var(--primary) !important; background: var(--primary-light); }
+.modern-drag-handle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.modern-drag-handle:active { cursor: grabbing; }
+
+.modern-drag-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  margin: -6px 0 14px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--slate-500);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.modern-drag-hint.is-active {
+  color: var(--primary-hover);
+  background: var(--primary-light);
+  border-color: var(--primary-border);
+}
+
+.modern-ws-card.is-dragging { opacity: .4; border-style: dashed; }
+.modern-link-row.is-dragging { opacity: .35; }
+.modern-ws-card.is-link-drop-target {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(139 92 246 / .12), 0 8px 24px rgb(139 92 246 / .08);
+}
+
+.modern-ws-card.drop-before::before,
+.modern-ws-card.drop-after::after,
+.modern-link-row.drop-before::before,
+.modern-link-row.drop-after::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgb(139 92 246 / .1);
+  pointer-events: none;
+}
+
+.modern-ws-card.drop-before::before { left: 0; right: 0; top: -10px; }
+.modern-ws-card.drop-after::after { left: 0; right: 0; bottom: -10px; }
+.modern-link-row.drop-before::before { left: 14px; right: 14px; top: -2px; }
+.modern-link-row.drop-after::after { left: 14px; right: 14px; bottom: -2px; }
+
+.modern-link-drop-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 14px 12px;
+  padding: 14px;
+  border: 1px dashed var(--primary-border);
+  border-radius: 8px;
+  background: var(--primary-light);
+  color: var(--primary-hover);
+  font-size: 12px;
+}
+
+.modern-link-drop-zone.is-active { border-color: var(--primary); }
+.modern-no-links.modern-link-drop-zone { margin-top: 12px; }
+.modern-drag-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 14px 20px;
+  border: 1px solid #c4b5fd;
+  border-radius: 12px;
+  background: #f5f3ff;
+  color: #6d28d9;
+  box-shadow: 0 12px 32px rgb(76 29 149 / .2);
+  font: 600 13px var(--font-body);
+  pointer-events: none;
+}
+
+:root[data-theme="dark"] .modern-drag-handle { color: #64748b; }
+:root[data-theme="dark"] .modern-drag-handle:hover,
+:root[data-theme="dark"] .modern-drag-handle:focus-visible,
+:root[data-theme="dark"] .modern-drag-hint.is-active,
+:root[data-theme="dark"] .modern-link-drop-zone {
+  background: #29213f;
+  color: #d8caff;
+  border-color: #4c3970;
+}
+
+:root[data-theme="dark"] .modern-ws-card.is-link-drop-target { border-color: var(--primary); }
+@media (prefers-reduced-motion: reduce) {
+  .modern-ws-card, .modern-link-row, .modern-drag-handle { transition: none; }
 }
 
 :root[data-theme="dark"] .modern-link-row.is-selected {

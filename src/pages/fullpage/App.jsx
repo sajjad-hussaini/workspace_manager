@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { moveWorkspace, moveLink } from "../../lib/dragDrop";
 import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme } from "../../lib/storage";
 import {
   getCurrentTabs,
@@ -30,7 +31,7 @@ export default function App() {
   // Search & sort
   const [searchInput, setSearchInput] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
-  const [sortKey, setSortKey] = useState("created-desc");
+  const [sortKey, setSortKey] = useState("manual");
 
   // UI state
   const [expandedIds, setExpandedIds] = useState(() => new Set());
@@ -39,8 +40,11 @@ export default function App() {
   const [theme, setTheme] = useState("light");
 
   // Drag & drop
-  const [draggedId, setDraggedId] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
+  const [dragItem, setDragItem] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
+  const dragRef = useRef(null);
+  const dropRef = useRef(null);
+  const movingRef = useRef(false);
 
   // New / Edit workspace modal
   const [newWorkspaceOpen, setNewWorkspaceOpen] = useState(false);
@@ -62,7 +66,9 @@ export default function App() {
   const showToast = useCallback((message) => setToast({ id: Date.now(), message }), []);
 
   const refresh = useCallback(async () => {
+    if (movingRef.current) return;
     const data = await getSessions();
+    if (movingRef.current) return;
     setSessions(data);
     setLoading(false);
   }, []);
@@ -583,26 +589,115 @@ export default function App() {
 
   // ── Drag & drop ───────────────────────────────────────────────────────────
 
-  async function handleReorder(sourceId, targetId) {
-    if (!sourceId || !targetId || sourceId === targetId) return;
-    const currentOrder = visibleSessions.map((s) => s.id);
-    const fromIndex = currentOrder.indexOf(sourceId);
-    const toIndex = currentOrder.indexOf(targetId);
-    if (fromIndex === -1 || toIndex === -1) return;
-    const reordered = [...currentOrder];
-    reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, sourceId);
-    const updated = reordered
-      .map((id, index) => {
-        const session = sessions.find((s) => s.id === id);
-        return session ? { ...session, order: index } : null;
-      })
-      .filter(Boolean);
-    setSessions((prev) => {
-      const map = new Map(updated.map((s) => [s.id, s]));
-      return prev.map((s) => map.get(s.id) || s);
-    });
-    await Promise.all(updated.map((s) => persistSession(s)));
+  function endDrag() {
+    dragRef.current = null;
+    dropRef.current = null;
+    setDragItem(null);
+    setDropTarget(null);
+  }
+
+  function startDrag(event, item, label) {
+    event.stopPropagation();
+    if (movingRef.current) { event.preventDefault(); return; }
+    dragRef.current = item;
+    setDragItem(item);
+    setOpenMenuId(null);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/x-workspace-manager", JSON.stringify(item));
+    const preview = document.createElement("div");
+    preview.className = "modern-drag-preview";
+    preview.textContent = `${item.type === "workspace" ? "Workspace" : "Link"} · ${label}`;
+    document.body.appendChild(preview);
+    event.dataTransfer.setDragImage(preview, 24, 22);
+    setTimeout(() => preview.remove(), 0);
+  }
+
+  function hoverDrop(event, sessionId, tabIndex) {
+    const item = dragRef.current;
+    if (!item) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    const rect = event.currentTarget.getBoundingClientRect();
+    const after = event.clientY > rect.top + rect.height / 2;
+    const target = item.type === "workspace"
+      ? { sessionId, edge: after ? "after" : "before" }
+      : { sessionId, index: tabIndex == null
+        ? (sessions.find((session) => session.id === sessionId)?.tabs?.length || 0)
+        : tabIndex + (after ? 1 : 0) };
+    dropRef.current = target;
+    setDropTarget((previous) => previous?.sessionId === target.sessionId && previous?.edge === target.edge && previous?.index === target.index ? previous : target);
+  }
+
+  async function commitDrop(item, target) {
+    if (!item || !target || movingRef.current) return;
+    let updates;
+    let moved;
+    if (item.type === "workspace") {
+      const ordered = activeNav === "recent"
+        ? [...sessions].sort((a, b) => Date.parse(b.lastOpenedAt || b.createdAt || 0) - Date.parse(a.lastOpenedAt || a.createdAt || 0))
+        : sortSessions(sessions, sortKey);
+      updates = moveWorkspace(ordered, displayedSessions.map((session) => session.id), item.sessionId, target.sessionId, target.edge);
+    } else {
+      moved = moveLink(sessions, selectedByWorkspace, item.sessionId, item.index, target.sessionId, target.index);
+      updates = moved?.updates;
+    }
+    if (!updates) return;
+    movingRef.current = true;
+    const updateMap = new Map(updates.map((session) => [session.id, session]));
+    setSessions((previous) => previous.map((session) => updateMap.get(session.id) || session));
+    if (moved) {
+      setSelectedByWorkspace(moved.selections);
+      setExpandedIds((previous) => new Set([...previous, target.sessionId]));
+    } else {
+      setSortKey("manual");
+      setActiveNav("all");
+    }
+    try {
+      // Save the destination first: a failed write must never lose a moved link.
+      for (const session of updates) await persistSession(session);
+      showToast(moved
+        ? item.sessionId === target.sessionId ? "Link order saved." : `Link moved to "${updateMap.get(target.sessionId).title}".`
+        : "Workspace order saved.");
+      return true;
+    } catch (error) {
+      console.error("Could not save movement:", error);
+      setSelectedByWorkspace(new Map());
+      showToast("Could not finish saving the move. Please check the saved order and destination.");
+    } finally {
+      movingRef.current = false;
+      try {
+        await refresh();
+      } catch (error) {
+        console.error("Could not reload saved workspaces:", error);
+        showToast("Could not reload saved workspaces. Please reload the page.");
+      }
+    }
+  }
+
+  function handleDrop(event) {
+    if (!dragRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const item = dragRef.current;
+    const target = dropRef.current;
+    endDrag();
+    void commitDrop(item, target);
+  }
+
+  async function keyboardMove(event, session, tabIndex) {
+    if (!event.altKey || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    const direction = event.key === "ArrowUp" ? -1 : 1;
+    if (tabIndex != null) {
+      const card = event.currentTarget.closest(".modern-ws-card");
+      const index = tabIndex + (direction > 0 ? 2 : -1);
+      const saved = await commitDrop({ type: "link", sessionId: session.id, index: tabIndex }, { sessionId: session.id, index });
+      if (saved) requestAnimationFrame(() => card?.querySelectorAll(".modern-link-drag-handle")[tabIndex + direction]?.focus());
+    } else {
+      const neighbor = displayedSessions[displayedSessions.findIndex((entry) => entry.id === session.id) + direction];
+      if (neighbor) void commitDrop({ type: "workspace", sessionId: session.id }, { sessionId: neighbor.id, edge: direction > 0 ? "after" : "before" });
+    }
   }
 
   // ── Export ─────────────────────────────────────────────────────────────────
@@ -829,6 +924,10 @@ export default function App() {
               </button>
             </div>
 
+            <div className={`modern-drag-hint ${dragItem ? "is-active" : ""}`} role="status">
+              <Icon name={dragItem ? "move" : "grip"} />
+              <span>{dragItem?.type === "link" ? "Drop between links to reorder, or into another workspace to move." : dragItem ? "Drop above or below a workspace to reorder." : "Drag to organize workspaces and move links between them."}</span>
+            </div>
             {/* List */}
             <div className="modern-workspace-stack">
               {loading && <div className="final-empty">Loading workspaces…</div>}
@@ -878,13 +977,21 @@ export default function App() {
                   selectedIndexes={selectedByWorkspace.get(session.id) || new Set()}
                   openMenuId={openMenuId}
                   setOpenMenuId={setOpenMenuId}
-                  isDragging={draggedId === session.id}
-                  isDragOver={dragOverId === session.id && draggedId !== session.id}
-                  onDragStart={() => setDraggedId(session.id)}
-                  onDragOver={(e) => { e.preventDefault(); if (dragOverId !== session.id) setDragOverId(session.id); }}
-                  onDragLeave={() => setDragOverId((cur) => (cur === session.id ? null : cur))}
-                  onDrop={(e) => { e.preventDefault(); handleReorder(draggedId, session.id); setDraggedId(null); setDragOverId(null); }}
-                  onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+                  dragItem={dragItem}
+                  dropTarget={dropTarget?.sessionId === session.id ? dropTarget : null}
+                  onDragStart={(event, tabIndex) => startDrag(event, tabIndex == null
+                    ? { type: "workspace", sessionId: session.id }
+                    : { type: "link", sessionId: session.id, index: tabIndex }, tabIndex == null ? session.title : session.tabs[tabIndex].title || session.tabs[tabIndex].url)}
+                  onDragOver={(event, tabIndex) => hoverDrop(event, session.id, tabIndex)}
+                  onDragLeave={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget) && dropRef.current?.sessionId === session.id) {
+                      dropRef.current = null;
+                      setDropTarget(null);
+                    }
+                  }}
+                  onDrop={handleDrop}
+                  onDragEnd={endDrag}
+                  onKeyboardMove={(event, tabIndex) => keyboardMove(event, session, tabIndex)}
                   onToggleExpanded={() => toggleExpanded(session.id)}
                   onEditSession={() => renameWorkspace(session)}
                   onDuplicateSession={() => duplicateWorkspace(session)}

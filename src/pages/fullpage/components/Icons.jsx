@@ -2,6 +2,8 @@ import { useState } from "react";
 
 export function Icon({ name }) {
   const paths = {
+    grip: <>{[5, 12, 19].flatMap((y) => [8, 16].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="currentColor" stroke="none" />))}</>,
+    move: <><path d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4" /></>,
     close: <><path d="m6 6 12 12M18 6 6 18" /></>,
     copy: <><rect x="8" y="8" width="10" height="10" rx="1.5" /><path d="M6 15H5.5A1.5 1.5 0 0 1 4 13.5v-8A1.5 1.5 0 0 1 5.5 4h8A1.5 1.5 0 0 1 15 5.5V6" /></>,
     download: <><path d="M12 4v10M8 10l4 4 4-4M5 19h14" /></>,
@@ -107,5 +109,4 @@ export function LinkFavicon({ tab, getFaviconUrl }) {
     </span>
   );
 }
-
 

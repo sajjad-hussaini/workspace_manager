@@ -65,13 +65,14 @@ export default function WorkspaceCard({
   selectedIndexes = new Set(),
   openMenuId,
   setOpenMenuId,
-  isDragging = false,
-  isDragOver = false,
+  dragItem,
+  dropTarget,
   onDragStart,
   onDragOver,
   onDragLeave,
   onDrop,
   onDragEnd,
+  onKeyboardMove,
   onToggleExpanded,
   onEditSession,
   onDuplicateSession,
@@ -95,6 +96,14 @@ export default function WorkspaceCard({
   const isLinkMenuOpen = tabs.some((_, tabIndex) => openMenuId === `link:${session.id}:${tabIndex}`);
   const [openDropdownActive, setOpenDropdownActive] = useState(false);
   const openMenuRef = useRef(null);
+  const isDragging = dragItem?.type === "workspace" && dragItem.sessionId === session.id;
+  const isLinkDrag = dragItem?.type === "link";
+  const workspaceDropEdge = dragItem?.type === "workspace" && !isDragging ? dropTarget?.edge : null;
+  const isLinkTarget = isLinkDrag && Boolean(dropTarget);
+
+  useEffect(() => {
+    if (dragItem) setOpenDropdownActive(false);
+  }, [dragItem]);
 
   useEffect(() => {
     if (!openDropdownActive) return;
@@ -133,13 +142,30 @@ export default function WorkspaceCard({
   const updatedDateText = formatRelativeDate(session.lastOpenedAt || session.createdAt);
 
   return (
-    <article className={`modern-ws-card ${expanded ? "is-expanded" : ""} ${isMenuOpen || isLinkMenuOpen || openDropdownActive ? "has-open-menu" : ""}`}>
+    <article
+      className={`modern-ws-card ${expanded ? "is-expanded" : ""} ${isMenuOpen || isLinkMenuOpen || openDropdownActive ? "has-open-menu" : ""} ${isDragging ? "is-dragging" : ""} ${workspaceDropEdge ? `drop-${workspaceDropEdge}` : ""} ${isLinkTarget ? "is-link-drop-target" : ""}`}
+      onDragOver={(event) => onDragOver(event)}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
       {/* Top purple accent line */}
       <div className="modern-ws-accent-bar" />
 
       {/* Card Header */}
       <div className="modern-ws-header">
-        <div className="modern-ws-info" onClick={onToggleExpanded} role="button" tabIndex={0}>
+        <button
+          className="modern-drag-handle modern-workspace-drag-handle"
+          draggable
+          type="button"
+          aria-label={`Reorder ${session.title}`}
+          title="Drag workspace to reorder · Alt + ↑ / ↓"
+          onDragStart={(event) => onDragStart(event)}
+          onKeyDown={(event) => onKeyboardMove(event)}
+        ><Icon name="grip" /></button>
+        <div className="modern-ws-info" onClick={onToggleExpanded} onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onToggleExpanded(); }
+        }} role="button" tabIndex={0}>
           <h3 className="modern-ws-title">{session.title}</h3>
           <div className="modern-ws-meta">
             <span>{tabs.length} tabs</span>
@@ -279,6 +305,12 @@ export default function WorkspaceCard({
         </div>
       </div>
 
+      {!expanded && isLinkDrag && (
+        <div className={`modern-link-drop-zone ${isLinkTarget ? "is-active" : ""}`}>
+          <Icon name="move" /> Drop link into this workspace
+        </div>
+      )}
+
       {/* Expanded Links Section */}
       {expanded && (
         <div className="modern-ws-body">
@@ -325,13 +357,18 @@ export default function WorkspaceCard({
 
           {/* Links List */}
           {tabs.length === 0 ? (
-            <div className="modern-no-links">
-              <span>No links saved in this workspace yet.</span>
+            <div className={`modern-no-links ${isLinkDrag ? "modern-link-drop-zone" : ""} ${isLinkTarget ? "is-active" : ""}`}>
+              {isLinkDrag && <Icon name="move" />}
+              <span>{isLinkDrag ? "Drop your link here" : "No links saved in this workspace yet."}</span>
             </div>
           ) : (
             <div className="modern-links-list">
               {tabs.map((tab, tabIndex) => (
-                <div className={`modern-link-row${selectedIndexes.has(tabIndex) ? " is-selected" : ""}`} key={`${session.id}-${tabIndex}`}>
+                <div
+                  className={`modern-link-row${selectedIndexes.has(tabIndex) ? " is-selected" : ""}${isLinkDrag && dragItem.sessionId === session.id && dragItem.index === tabIndex ? " is-dragging" : ""}${isLinkTarget && dropTarget.index === tabIndex ? " drop-before" : ""}${isLinkTarget && dropTarget.index === tabs.length && tabIndex === tabs.length - 1 ? " drop-after" : ""}`}
+                  key={`${session.id}-${tabIndex}`}
+                  onDragOver={(event) => { if (isLinkDrag) onDragOver(event, tabIndex); }}
+                >
                   <input
                     type="checkbox"
                     className="ws-link-check"
@@ -339,6 +376,15 @@ export default function WorkspaceCard({
                     onChange={(e) => onToggleTabSelection(tabIndex, e.target.checked)}
                     aria-label={`Select ${tab.title || tab.url}`}
                   />
+                  <button
+                    className="modern-drag-handle modern-link-drag-handle"
+                    draggable
+                    type="button"
+                    aria-label={`Move ${tab.title || tab.url}`}
+                    title="Drag to reorder or move to another workspace · Alt + ↑ / ↓"
+                    onDragStart={(event) => onDragStart(event, tabIndex)}
+                    onKeyDown={(event) => onKeyboardMove(event, tabIndex)}
+                  ><Icon name="grip" /></button>
                   <button
                     className="modern-link-main"
                     onClick={() => onOpenTab(tab.url, tabIndex)}
