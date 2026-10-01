@@ -878,15 +878,6 @@ export default function App({ popup = false }) {
             </button>
 
             <button
-              className="modern-btn-purple"
-              onClick={handleQuickSave}
-              disabled={saving}
-              type="button"
-            >
-              <Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}
-            </button>
-
-            <button
               className="modern-theme-btn"
               onClick={toggleTheme}
               type="button"
