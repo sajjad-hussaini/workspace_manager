@@ -698,7 +698,7 @@
 ───────────────────────────────────────────── */
 .modern-summary-grid {
   display: grid;
-  grid-template-columns: 1.45fr 1fr 1fr;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 32px;
 }

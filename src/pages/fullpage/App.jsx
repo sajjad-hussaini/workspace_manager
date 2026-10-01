@@ -15,6 +15,9 @@ import WorkspaceCard from "./components/WorkspaceCard";
 import ConfirmDialog from "./components/ConfirmDialog";
 import Toast from "./components/Toast";
 import ReminderStack from "./components/ReminderStack";
+import ReminderSummary from "./components/ReminderSummary";
+import RemindersPage from "./components/RemindersPage";
+import { collectReminders, toLocalDateTime } from "../../lib/reminders";
 import { Icon } from "./components/Icons";
 
 export default function App({ popup = false }) {
@@ -39,6 +42,14 @@ export default function App({ popup = false }) {
   const [selectedByWorkspace, setSelectedByWorkspace] = useState(() => new Map());
   const [openMenuId, setOpenMenuId] = useState(null);
   const [theme, setTheme] = useState("light");
+  const [now, setNow] = useState(Date.now);
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const timer = setInterval(tick, 15000);
+    window.addEventListener("focus", tick);
+    return () => { clearInterval(timer); window.removeEventListener("focus", tick); };
+  }, []);
 
   // Drag & drop
   const [dragItem, setDragItem] = useState(null);
@@ -115,11 +126,39 @@ export default function App({ popup = false }) {
   }, [openMenuId]);
 
   const dueReminders = useMemo(() => {
-    const now = Date.now();
     return sessions
       .filter((s) => s.reminderAt && Date.parse(s.reminderAt) <= now)
       .sort((a, b) => Date.parse(b.reminderAt) - Date.parse(a.reminderAt));
-  }, [sessions]);
+  }, [sessions, now]);
+
+  const reminders = useMemo(() => collectReminders(sessions), [sessions]);
+
+  async function updateReminder(reminder, nextTime) {
+    try {
+      const session = sessions.find((item) => item.id === reminder.session.id);
+      if (!session) return;
+      const updated = reminder.tabIndex === null
+        ? { ...session, reminderAt: nextTime }
+        : { ...session, tabs: session.tabs.map((tab, index) => index === reminder.tabIndex ? { ...tab, reminderAt: nextTime } : tab) };
+      await persistSession(updated);
+      await refresh();
+      setNow(Date.now());
+      showToast(nextTime ? "Reminder snoozed for 1 hour." : "Reminder removed.");
+    } catch (error) {
+      console.error("Could not update reminder:", error);
+      showToast("Could not update reminder. Please try again.");
+    }
+  }
+
+  async function openReminder(reminder) {
+    try {
+      if (reminder.tabIndex === null) await handleOpenAll(reminder.session);
+      else await handleOpenTab(reminder.session, reminder.tabIndex);
+    } catch (error) {
+      console.error("Could not open reminder:", error);
+      showToast("Could not open saved links. Please try again.");
+    }
+  }
 
   async function dismissReminder(session) {
     try {
@@ -525,7 +564,7 @@ export default function App({ popup = false }) {
     setTitle(session.title || "");
     setNote(session.note || "");
     setTags(Array.isArray(session.tags) ? session.tags.join(", ") : session.tags || "");
-    setReminderAt(session.reminderAt ? session.reminderAt.slice(0, 16) : "");
+    setReminderAt(toLocalDateTime(session.reminderAt));
     setNewWorkspaceOpen(true);
   }
 
@@ -561,7 +600,7 @@ export default function App({ popup = false }) {
     setLinkUrl(tab.url || "");
     setLinkNote(tab.note || "");
     setLinkTags(Array.isArray(tab.tags) ? tab.tags.join(", ") : tab.tags || "");
-    setLinkReminderAt(tab.reminderAt ? tab.reminderAt.slice(0, 16) : "");
+    setLinkReminderAt(toLocalDateTime(tab.reminderAt));
   }
 
   function closeLinkEditor() {
@@ -771,8 +810,8 @@ export default function App({ popup = false }) {
       <Icon name="search" />
       <input
         className="modern-search-input"
-        aria-label="Search workspaces"
-        placeholder={popup ? "Search workspaces and tabs..." : "Search workspaces..."}
+        aria-label={activeNav === "reminders" ? "Search reminders" : "Search workspaces"}
+        placeholder={activeNav === "reminders" ? "Search reminders..." : popup ? "Search workspaces and tabs..." : "Search workspaces..."}
         value={searchInput}
         onChange={(event) => setSearchInput(event.target.value)}
       />
@@ -830,6 +869,11 @@ export default function App({ popup = false }) {
           </button>
 
           <div className="modern-nav-divider" />
+
+          <button className={`modern-nav-item ${activeNav === "reminders" ? "is-active" : ""}`} onClick={() => { setActiveNav("reminders"); setSearchInput(""); setActiveSearch(""); }} type="button">
+            <span className="modern-nav-icon"><Icon name="reminderbell" /></span>
+            <span className="modern-nav-text">Reminders</span>
+          </button>
 
           <button
             className={`modern-nav-item ${activeNav === "settings" ? "is-active" : ""}`}
@@ -890,6 +934,18 @@ export default function App({ popup = false }) {
         </header>}
 
         <main className="modern-content">
+          {activeNav === "reminders" ? <RemindersPage
+            reminders={reminders}
+            now={now}
+            search={searchInput.trim().toLowerCase()}
+            loading={loading}
+            onBack={() => { setActiveNav("all"); setSearchInput(""); setActiveSearch(""); }}
+            onClearSearch={() => { setSearchInput(""); setActiveSearch(""); }}
+            onOpen={openReminder}
+            onSnooze={(reminder) => updateReminder(reminder, new Date(Date.now() + 60 * 60 * 1000).toISOString())}
+            onRemove={(reminder) => updateReminder(reminder, "")}
+            onEdit={(reminder) => reminder.tabIndex === null ? renameWorkspace(reminder.session) : openLinkEditor(reminder.session, reminder.tabIndex)}
+          /> : <>
           {/* Header */}
           {!popup && <div className="modern-page-header">
             <span className="modern-eyebrow">WORKSPACE LIBRARY</span>
@@ -900,7 +956,7 @@ export default function App({ popup = false }) {
           </div>}
 
           {/* Due Reminders */}
-          <ReminderStack reminders={dueReminders} onDismiss={dismissReminder} />
+          {popup && <ReminderStack reminders={dueReminders} onDismiss={dismissReminder} />}
 
           {/* 3 Metric Summary Cards Row */}
           <section className="modern-summary-grid">
@@ -960,6 +1016,7 @@ export default function App({ popup = false }) {
               <div className="modern-card-stat-val">{totalSavedTabs}</div>
               <span className="modern-card-stat-sub">Across all workspaces</span>
             </div>
+            <ReminderSummary reminders={reminders} now={now} onOpen={() => { setActiveNav("reminders"); setSearchInput(""); setActiveSearch(""); }} />
             </>}
           </section>
 
@@ -1093,6 +1150,7 @@ export default function App({ popup = false }) {
           <footer className="modern-footer">
             <span>{sessions.length} workspace{sessions.length === 1 ? "" : "s"} · {totalSavedTabs} saved tabs</span>
           </footer>
+          </>}
         </main>
       </div>
 
