@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { collectReminders, reminderGroup, toLocalDateTime } from "./reminders.js";
+import { collectReminders, reminderGroup, toLocalDateTime, getReminderMinDate, isValidReminderDate } from "./reminders.js";
 
 test("counts workspace and link reminders, ignores invalid dates, and sorts by due time", () => {
   const sessions = [
@@ -41,4 +41,24 @@ test("editing a stored reminder preserves its local time and instant", () => {
   assert.equal(new Date(input).getTime(), local.getTime());
   assert.equal(toLocalDateTime(""), "");
   assert.equal(toLocalDateTime("invalid"), "");
+});
+
+test("reminder dates allow today and later but reject earlier dates and invalid input", () => {
+  const now = new Date(2026, 9, 5, 14, 30).getTime();
+  assert.equal(getReminderMinDate(now), "2026-10-05T00:00");
+  assert.equal(isValidReminderDate("2026-10-04T23:59", now), false);
+  assert.equal(isValidReminderDate("2026-10-05T00:00", now), true);
+  assert.equal(isValidReminderDate("2026-10-05T09:00", now), true);
+  assert.equal(isValidReminderDate("2026-10-06T00:00", now), true);
+  assert.equal(isValidReminderDate("invalid", now), false);
+  assert.equal(isValidReminderDate("", now), true);
+});
+
+test("reminder minimum follows the local day across midnight and year boundaries", () => {
+  const beforeMidnight = new Date(2026, 11, 31, 23, 59).getTime();
+  const afterMidnight = new Date(2027, 0, 1, 0, 1).getTime();
+  assert.equal(getReminderMinDate(beforeMidnight), "2026-12-31T00:00");
+  assert.equal(getReminderMinDate(afterMidnight), "2027-01-01T00:00");
+  assert.equal(isValidReminderDate("2026-12-31T23:59", beforeMidnight), true);
+  assert.equal(isValidReminderDate("2026-12-31T23:59", afterMidnight), false);
 });

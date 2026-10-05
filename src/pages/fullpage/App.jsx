@@ -18,7 +18,7 @@ import Toast from "./components/Toast";
 import ReminderStack from "./components/ReminderStack";
 import ReminderSummary from "./components/ReminderSummary";
 import RemindersPage from "./components/RemindersPage";
-import { collectReminders, toLocalDateTime } from "../../lib/reminders";
+import { collectReminders, toLocalDateTime, getReminderMinDate, isValidReminderDate } from "../../lib/reminders";
 import { Icon, LinkFavicon } from "./components/Icons";
 
 export default function App({ popup = false }) {
@@ -44,6 +44,7 @@ export default function App({ popup = false }) {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [theme, setTheme] = useState("light");
   const [now, setNow] = useState(Date.now);
+  const reminderMinDate = getReminderMinDate(now);
 
   useEffect(() => {
     const tick = () => setNow(Date.now());
@@ -208,7 +209,14 @@ export default function App({ popup = false }) {
 
   // ── Save ──────────────────────────────────────────────────────────────────
 
+  function validateReminder(value) {
+    if (isValidReminderDate(value)) return true;
+    showToast("Choose a reminder date of today or later.");
+    return false;
+  }
+
   async function handleSave() {
+    if (!validateReminder(reminderAt)) return;
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       showToast("Enter a workspace name first.");
@@ -515,6 +523,7 @@ export default function App({ popup = false }) {
   }
 
   async function saveWorkspaceModal() {
+    if (!validateReminder(reminderAt)) return;
     const nextTitle = title.trim();
     if (!nextTitle) {
       showToast("Enter a workspace name first.");
@@ -610,6 +619,7 @@ export default function App({ popup = false }) {
 
   async function saveLinkEditor() {
     if (!editingLink) return;
+    if (!validateReminder(linkReminderAt)) return;
     const trimmedUrl = linkUrl.trim();
     try { new URL(trimmedUrl); } catch {
       showToast("Enter a valid link URL (e.g. https://example.com).");
@@ -1182,7 +1192,7 @@ export default function App({ popup = false }) {
             <label>Workspace name<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Design research" autoFocus /></label>
             <label>Tags <span>(comma separated, optional)</span><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. work, research, urgent" /></label>
             <label>Note <span>(optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What is this workspace for?" rows="3" /></label>
-            <label>Reminder <span>(optional)</span><input type="datetime-local" value={reminderAt} onChange={(e) => setReminderAt(e.target.value)} /></label>
+            <label>Reminder <span>(optional)</span><input type="datetime-local" min={reminderMinDate} value={reminderAt} onChange={(e) => setReminderAt(e.target.value)} /></label>
             <div className="new-workspace-actions">
               <button className="new-workspace-cancel" onClick={closeWorkspaceModal} type="button">Cancel</button>
               <button className="new-workspace-save" disabled={saving} type="submit">
@@ -1215,7 +1225,7 @@ export default function App({ popup = false }) {
             <label>URL<input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://example.com" /></label>
             <label>Notes <span>(optional)</span><textarea value={linkNote} onChange={(e) => setLinkNote(e.target.value)} placeholder="What is this link for?" rows="3" /></label>
             <label>Tags <span>(comma separated)</span><input value={linkTags} onChange={(e) => setLinkTags(e.target.value)} placeholder="research, priority" /></label>
-            <label>Reminder <span>(optional)</span><input type="datetime-local" value={linkReminderAt} onChange={(e) => setLinkReminderAt(e.target.value)} /></label>
+            <label>Reminder <span>(optional)</span><input type="datetime-local" min={reminderMinDate} value={linkReminderAt} onChange={(e) => setLinkReminderAt(e.target.value)} /></label>
             <div className="new-workspace-actions">
               <button className="new-workspace-cancel" onClick={closeLinkEditor} type="button">Cancel</button>
               <button className="new-workspace-save" type="submit">{isAddingLink ? "Add Link" : "Save Changes"}</button>

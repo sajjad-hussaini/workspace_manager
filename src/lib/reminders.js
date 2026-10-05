@@ -41,3 +41,15 @@ export function toLocalDateTime(value) {
   const pad = (part) => String(part).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+export function getReminderMinDate(now = Date.now()) {
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return toLocalDateTime(today);
+}
+
+export function isValidReminderDate(value, now = Date.now()) {
+  if (!value) return true;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) && timestamp >= new Date(getReminderMinDate(now)).getTime();
+}
