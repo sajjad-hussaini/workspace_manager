@@ -12,6 +12,7 @@ import {
   workspaceMatchesSearch
 } from "../../lib/utils";
 import WorkspaceCard from "./components/WorkspaceCard";
+import SearchResults from "./components/SearchResults";
 import ConfirmDialog from "./components/ConfirmDialog";
 import Toast from "./components/Toast";
 import ReminderStack from "./components/ReminderStack";
@@ -103,7 +104,7 @@ export default function App({ popup = false }) {
   // Search debounce — 3-char minimum
   useEffect(() => {
     const trimmed = searchInput.trim();
-    if (!trimmed) {
+    if (trimmed.length < 3) {
       const t = setTimeout(() => setActiveSearch(""), 0);
       return () => clearTimeout(t);
     }
@@ -805,16 +806,69 @@ export default function App({ popup = false }) {
     window.close();
   }
 
+  const renderWorkspace = (session, index) => (
+    <WorkspaceCard
+      key={session.id}
+      session={session}
+      searchQuery={!popup ? activeSearch : ""}
+      index={index}
+      expanded={expandedIds.has(session.id)}
+      selectedIndexes={selectedByWorkspace.get(session.id) || new Set()}
+      openMenuId={openMenuId}
+      setOpenMenuId={setOpenMenuId}
+      pointerDrag={popup}
+      onPointerDragStart={(event, tabIndex) => startPointerDrag(event, tabIndex == null
+        ? { type: "workspace", sessionId: session.id }
+        : { type: "link", sessionId: session.id, index: tabIndex }, tabIndex == null ? session.title : session.tabs[tabIndex].title || session.tabs[tabIndex].url)}
+      dragItem={dragItem}
+      dropTarget={dropTarget?.sessionId === session.id ? dropTarget : null}
+      onDragStart={(event, tabIndex) => startDrag(event, tabIndex == null
+        ? { type: "workspace", sessionId: session.id }
+        : { type: "link", sessionId: session.id, index: tabIndex }, tabIndex == null ? session.title : session.tabs[tabIndex].title || session.tabs[tabIndex].url)}
+      onDragOver={(event, tabIndex) => hoverDrop(event, session.id, tabIndex)}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget) && dropRef.current?.sessionId === session.id) {
+          dropRef.current = null;
+          setDropTarget(null);
+        }
+      }}
+      onDrop={handleDrop}
+      onDragEnd={endDrag}
+      onKeyboardMove={(event, tabIndex) => keyboardMove(event, session, tabIndex)}
+      onToggleExpanded={() => toggleExpanded(session.id)}
+      onEditSession={() => renameWorkspace(session)}
+      onDuplicateSession={() => duplicateWorkspace(session)}
+      onExportSession={() => {
+        exportWorkspacesToCsv([session]);
+        showToast("Workspace exported as CSV.");
+      }}
+      onDeleteSession={() => requestDeleteSession(session)}
+      onToggleTabSelection={(tabIndex, checked) => toggleTabSelection(session.id, tabIndex, checked)}
+      onOpenTab={(url, tabIndex) => handleOpenTab(session, tabIndex)}
+      onEditTab={(tabIndex) => openLinkEditor(session, tabIndex)}
+      onDeleteTab={(tabIndex) => requestDeleteTab(session, tabIndex)}
+      onAddLink={() => openAddLink(session)}
+      onOpenAll={() => handleOpenAll(session)}
+      onOpenNewWindow={() => handleOpenNewWindow(session)}
+      onOpenSelected={() => handleOpenSelected(session)}
+      onOpenSelectedNewWindow={() => handleOpenSelectedNewWindow(session)}
+      onDeleteSelected={() => requestDeleteSelected(session)}
+      onAddCurrentLinks={() => handleAddCurrentLinks(session)}
+      getFaviconUrl={getFaviconUrl}
+    />
+  );
+
   const searchField = (
     <div className="modern-topbar-search">
       <Icon name="search" />
       <input
         className="modern-search-input"
-        aria-label={activeNav === "reminders" ? "Search reminders" : "Search workspaces"}
-        placeholder={activeNav === "reminders" ? "Search reminders..." : popup ? "Search workspaces and tabs..." : "Search workspaces..."}
+        aria-label={activeNav === "reminders" ? "Search reminders" : "Search workspaces and tabs"}
+        placeholder={activeNav === "reminders" ? "Search reminders..." : "Search workspaces and tabs..."}
         value={searchInput}
         onChange={(event) => setSearchInput(event.target.value)}
       />
+      {searchInput && <button className="search-clear" type="button" aria-label="Clear search" onClick={() => { setSearchInput(""); setActiveSearch(""); }}><Icon name="close" /></button>}
     </div>
   );
 
@@ -945,6 +999,22 @@ export default function App({ popup = false }) {
             onSnooze={(reminder) => updateReminder(reminder, new Date(Date.now() + 60 * 60 * 1000).toISOString())}
             onRemove={(reminder) => updateReminder(reminder, "")}
             onEdit={(reminder) => reminder.tabIndex === null ? renameWorkspace(reminder.session) : openLinkEditor(reminder.session, reminder.tabIndex)}
+          /> : !popup && activeSearch ? <SearchResults
+            key={activeSearch}
+            query={activeSearch}
+            sessions={displayedSessions}
+            loading={loading}
+            renderWorkspace={renderWorkspace}
+            onOpenTab={handleOpenTab}
+            onShowWorkspace={(sessionId) => {
+              setExpandedIds((previous) => new Set(previous).add(sessionId));
+              requestAnimationFrame(() => {
+                const card = [...document.querySelectorAll(".search-workspace-list [data-workspace-id]")].find((element) => element.dataset.workspaceId === sessionId);
+                card?.scrollIntoView({ behavior: "smooth", block: "center" });
+                card?.querySelector(".modern-ws-info")?.focus({ preventScroll: true });
+              });
+            }}
+            getFaviconUrl={getFaviconUrl}
           /> : <>
           {/* Header */}
           {!popup && <div className="modern-page-header">
@@ -1087,56 +1157,7 @@ export default function App({ popup = false }) {
                 <div className="final-empty">No workspaces match your search.</div>
               )}
 
-              {displayedSessions.map((session, index) => (
-                <WorkspaceCard
-                  key={session.id}
-                  session={session}
-                  index={index}
-                  expanded={expandedIds.has(session.id)}
-                  selectedIndexes={selectedByWorkspace.get(session.id) || new Set()}
-                  openMenuId={openMenuId}
-                  setOpenMenuId={setOpenMenuId}
-                  pointerDrag={popup}
-                  onPointerDragStart={(event, tabIndex) => startPointerDrag(event, tabIndex == null
-                    ? { type: "workspace", sessionId: session.id }
-                    : { type: "link", sessionId: session.id, index: tabIndex }, tabIndex == null ? session.title : session.tabs[tabIndex].title || session.tabs[tabIndex].url)}
-                  dragItem={dragItem}
-                  dropTarget={dropTarget?.sessionId === session.id ? dropTarget : null}
-                  onDragStart={(event, tabIndex) => startDrag(event, tabIndex == null
-                    ? { type: "workspace", sessionId: session.id }
-                    : { type: "link", sessionId: session.id, index: tabIndex }, tabIndex == null ? session.title : session.tabs[tabIndex].title || session.tabs[tabIndex].url)}
-                  onDragOver={(event, tabIndex) => hoverDrop(event, session.id, tabIndex)}
-                  onDragLeave={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget) && dropRef.current?.sessionId === session.id) {
-                      dropRef.current = null;
-                      setDropTarget(null);
-                    }
-                  }}
-                  onDrop={handleDrop}
-                  onDragEnd={endDrag}
-                  onKeyboardMove={(event, tabIndex) => keyboardMove(event, session, tabIndex)}
-                  onToggleExpanded={() => toggleExpanded(session.id)}
-                  onEditSession={() => renameWorkspace(session)}
-                  onDuplicateSession={() => duplicateWorkspace(session)}
-                  onExportSession={() => {
-                    exportWorkspacesToCsv([session]);
-                    showToast("Workspace exported as CSV.");
-                  }}
-                  onDeleteSession={() => requestDeleteSession(session)}
-                  onToggleTabSelection={(tabIndex, checked) => toggleTabSelection(session.id, tabIndex, checked)}
-                  onOpenTab={(url, tabIndex) => handleOpenTab(session, tabIndex)}
-                  onEditTab={(tabIndex) => openLinkEditor(session, tabIndex)}
-                  onDeleteTab={(tabIndex) => requestDeleteTab(session, tabIndex)}
-                  onAddLink={() => openAddLink(session)}
-                  onOpenAll={() => handleOpenAll(session)}
-                  onOpenNewWindow={() => handleOpenNewWindow(session)}
-                  onOpenSelected={() => handleOpenSelected(session)}
-                  onOpenSelectedNewWindow={() => handleOpenSelectedNewWindow(session)}
-                  onDeleteSelected={() => requestDeleteSelected(session)}
-                  onAddCurrentLinks={() => handleAddCurrentLinks(session)}
-                  getFaviconUrl={getFaviconUrl}
-                />
-              ))}
+              {displayedSessions.map(renderWorkspace)}
             </div>
           </section>
 

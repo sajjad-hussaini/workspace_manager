@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Icon, LinkFavicon } from "./Icons";
 import TagList from "./TagList";
+import SearchHighlight from "./SearchHighlight";
 
 function LinkOptions({ menuId, label, openMenuId, setOpenMenuId, onDelete }) {
   const isOpen = openMenuId === menuId;
@@ -61,6 +62,7 @@ function LinkOptions({ menuId, label, openMenuId, setOpenMenuId, onDelete }) {
 
 export default function WorkspaceCard({
   session,
+  searchQuery = "",
   index = 0,
   expanded = false,
   selectedIndexes = new Set(),
@@ -175,7 +177,7 @@ export default function WorkspaceCard({
           onClick={onToggleExpanded} onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onToggleExpanded(); }
         }} role="button" tabIndex={0}>
-          <h3 className="modern-ws-title">{session.title}</h3>
+          <h3 className="modern-ws-title"><SearchHighlight text={session.title} query={searchQuery} /></h3>
           <div className="modern-ws-meta">
             <span>{tabs.length} tabs</span>
             {updatedDateText && (
@@ -188,7 +190,7 @@ export default function WorkspaceCard({
               <span className="modern-ws-tags">
                 {session.tags.map((tag, i) => (
                   <span key={i} className="modern-ws-tag-badge">
-                    {tag}
+                    <SearchHighlight text={tag} query={searchQuery} />
                   </span>
                 ))}
               </span>

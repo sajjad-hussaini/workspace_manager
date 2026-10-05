@@ -131,3 +131,8 @@ export function workspaceMatchesSearch(session, term) {
   }).join(" ").toLowerCase();
   return workspaceText.includes(term) || linkText.includes(term);
 }
+
+export function tabMatchesSearch(tab, term) {
+  const tags = Array.isArray(tab.tags) ? tab.tags.join(" ") : (tab.tags || "");
+  return [tab.title, tab.url, tab.note, tags].filter(Boolean).join(" ").toLowerCase().includes(term.trim().toLowerCase());
+}
