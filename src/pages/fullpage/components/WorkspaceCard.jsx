@@ -158,7 +158,7 @@ export default function WorkspaceCard({
       onDragEnd={onDragEnd}
     >
       {/* Top purple accent line */}
-      <div className="modern-ws-accent-bar" />
+      {expanded && <div className="modern-ws-accent-bar" />}
 
       {/* Card Header */}
       <div className="modern-ws-header">

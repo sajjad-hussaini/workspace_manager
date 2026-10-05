@@ -45,7 +45,6 @@
 .search-workspace-list .modern-ws-card:first-child { border-radius: 12px 12px 0 0; }
 .search-workspace-list .modern-ws-card:last-child { border-radius: 0 0 12px 12px; }
 .search-workspace-list .modern-ws-card + .modern-ws-card { border-top: 1px solid var(--border-soft); }
-.search-workspace-list .modern-ws-accent-bar,
 .search-workspace-list .modern-workspace-drag-handle { display: none; }
 .search-workspace-list .modern-ws-header { grid-template-columns: minmax(0, 1fr) auto; padding: 18px 20px; }
 .search-workspace-list .modern-ws-title { font-size: 13px; font-weight: 500; }
