@@ -3,6 +3,52 @@ import { Icon, LinkFavicon } from "./Icons";
 import TagList from "./TagList";
 import SearchHighlight from "./SearchHighlight";
 
+function SelectedOpenOptions({ onOpenCurrent, onOpenNewWindow }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const firstOptionRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    firstOptionRef.current?.focus();
+    const closeOutside = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [isOpen]);
+
+  function choose(action) {
+    setIsOpen(false);
+    triggerRef.current?.focus();
+    action();
+  }
+
+  return (
+    <div className="modern-selected-open" ref={containerRef}
+      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false); }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && isOpen) {
+          event.preventDefault();
+          event.stopPropagation();
+          setIsOpen(false);
+          triggerRef.current?.focus();
+        }
+      }}>
+      <button ref={triggerRef} className="modern-selection-btn modern-selected-open-trigger" type="button"
+        aria-label="Open selected links" aria-expanded={isOpen}
+        onClick={() => setIsOpen((previous) => !previous)}>
+        Open <Icon name="chevron-down" />
+      </button>
+      {isOpen && <div className="modern-split-dropdown" role="group" aria-label="Open selected links options">
+        <button ref={firstOptionRef} type="button" onClick={() => choose(onOpenCurrent)}><Icon name="external" /> Open in current window</button>
+        <button type="button" onClick={() => choose(onOpenNewWindow)}><Icon name="window" /> Open in new window</button>
+      </div>}
+    </div>
+  );
+}
+
 function LinkOptions({ menuId, label, openMenuId, setOpenMenuId, onDelete }) {
   const isOpen = openMenuId === menuId;
   const triggerRef = useRef(null);
@@ -62,6 +108,7 @@ function LinkOptions({ menuId, label, openMenuId, setOpenMenuId, onDelete }) {
 
 export default function WorkspaceCard({
   session,
+  popup = false,
   searchQuery = "",
   index = 0,
   expanded = false,
@@ -359,18 +406,20 @@ export default function WorkspaceCard({
                   })}
                 >
                   <svg viewBox="0 0 14 14" aria-hidden="true">
-                    <path d="M4 7h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d={popup ? "M4 4l6 6M10 4l-6 6" : "M4 7h6"} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
                 <span className="modern-selection-count" role="status">{selectedCount} selected</span>
+                {popup ? <SelectedOpenOptions onOpenCurrent={onOpenSelected} onOpenNewWindow={onOpenSelectedNewWindow} /> : <>
                 <button className="modern-selection-btn" onClick={onOpenSelected} type="button">
                   <Icon name="external" />Open Current Window
                 </button>
                 <button className="modern-selection-btn" onClick={onOpenSelectedNewWindow} type="button">
                   <Icon name="window" />Open New Window
                 </button>
+                </>}
                 <button className="modern-selection-btn is-danger" onClick={onDeleteSelected} type="button" aria-label="Delete selected links">
-                  <Icon name="trash" /> Delete Selected 
+                  <Icon name="trash" />{!popup && " Delete Selected"}
                 </button>
               </div>
             )}

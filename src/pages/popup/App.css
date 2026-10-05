@@ -180,29 +180,60 @@ body.is-pointer-dragging * { cursor: grabbing !important; user-select: none; }
   padding: 10px 12px;
 }
 
-/* Keep every bulk action visible, with the count on its own line. */
+/* Compact selected-link actions in the popup. */
 .modern-popup-shell .modern-selection-actions {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px 6px;
-  padding: 10px 12px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 8px 12px;
 }
 
 .modern-popup-shell .modern-selection-count {
-  grid-column: 2 / -1;
+  order: 0;
+  margin-right: auto;
 }
 
 .modern-popup-shell .modern-selection-btn {
-  grid-column: span 1;
   min-width: 0;
-  padding: 6px 4px;
+  min-height: 28px;
+  padding: 5px 8px;
   gap: 4px;
   font-size: 10px;
   line-height: 1.3;
 }
 
-.modern-popup-shell .modern-selection-actions > .modern-selection-btn:nth-child(3) {
-  grid-column: 1 / 3;
+.modern-popup-shell .modern-selected-open {
+  position: relative;
+  order: 1;
+}
+
+.modern-popup-shell .modern-selected-open-trigger {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.modern-popup-shell .modern-selected-open-trigger:hover {
+  background: var(--primary-hover);
+}
+
+.modern-popup-shell .modern-selection-actions > .is-danger {
+  order: 2;
+  width: 28px;
+  padding: 0;
+}
+
+.modern-popup-shell .modern-clear-selection {
+  order: 3;
+  width: 22px;
+  height: 28px;
+  flex-basis: 22px;
+  background: transparent;
+  color: var(--slate-500);
+}
+
+.modern-popup-shell .modern-clear-selection:hover {
+  color: var(--primary);
 }
 
 .modern-popup-shell .modern-link-row {

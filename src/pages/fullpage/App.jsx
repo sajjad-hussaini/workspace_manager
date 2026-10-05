@@ -810,6 +810,7 @@ export default function App({ popup = false }) {
     <WorkspaceCard
       key={session.id}
       session={session}
+      popup={popup}
       searchQuery={!popup ? activeSearch : ""}
       index={index}
       expanded={expandedIds.has(session.id)}
