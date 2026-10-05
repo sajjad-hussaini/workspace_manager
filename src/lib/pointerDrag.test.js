@@ -26,7 +26,7 @@ function setup(item = { type: "workspace", sessionId: "a" }) {
   let scrolled = 0;
   let removed = false;
   const win = { ...events(), requestAnimationFrame(fn) { nextFrame = fn; return 1; }, cancelAnimationFrame() { nextFrame = null; }, setTimeout(fn) { timers.push(fn); }, getComputedStyle() { return { overflowY: "auto" }; } };
-  const body = { classList: { add() {}, remove() {} }, appendChild() {}, scrollHeight: 1200, clientHeight: 600, scrollBy(x, y) { scrolled += y; } };
+  const body = { classList: { add() { }, remove() { } }, appendChild() { }, scrollHeight: 1200, clientHeight: 600, scrollBy(x, y) { scrolled += y; } };
   const doc = { ...events(), defaultView: win, body, documentElement: { clientWidth: 440, clientHeight: 600 }, elementFromPoint() { return hit; }, createElement() { return { style: {}, offsetWidth: 160, offsetHeight: 40, remove() { removed = true; } }; } };
   const source = { ...events(), ownerDocument: doc, parentElement: body, setPointerCapture() { this.captured = true; }, hasPointerCapture() { return this.captured; }, releasePointerCapture() { this.captured = false; } };
   const cancel = beginPointerDrag({ currentTarget: source, button: 0, pointerId: 1, clientX: 50, clientY: 100 }, {

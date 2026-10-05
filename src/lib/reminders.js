@@ -30,8 +30,8 @@ export function formatReminderDate(value, now = Date.now()) {
   const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
   const day = date.toDateString() === today.toDateString() ? "Today"
     : date.toDateString() === tomorrow.toDateString() ? "Tomorrow"
-    : date.toDateString() === yesterday.toDateString() ? "Yesterday"
-    : date.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(date.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}) });
+      : date.toDateString() === yesterday.toDateString() ? "Yesterday"
+        : date.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(date.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}) });
   return `${day}, ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
 }
 

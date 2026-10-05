@@ -4,11 +4,13 @@ import { collectReminders, reminderGroup, toLocalDateTime } from "./reminders.js
 
 test("counts workspace and link reminders, ignores invalid dates, and sorts by due time", () => {
   const sessions = [
-    { id: "a", title: "Research", reminderAt: "2026-10-01T09:00:00Z", tabs: [
-      { title: "Reference", reminderAt: "2026-09-30T09:00:00Z" },
-      { title: "No reminder" },
-      { title: "Invalid", reminderAt: "invalid" }
-    ] },
+    {
+      id: "a", title: "Research", reminderAt: "2026-10-01T09:00:00Z", tabs: [
+        { title: "Reference", reminderAt: "2026-09-30T09:00:00Z" },
+        { title: "No reminder" },
+        { title: "Invalid", reminderAt: "invalid" }
+      ]
+    },
     { id: "b", title: "Design", tabs: [{ title: "Reference", reminderAt: "2026-10-02T09:00:00Z" }] }
   ];
   const before = structuredClone(sessions);

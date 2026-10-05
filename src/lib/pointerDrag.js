@@ -1,6 +1,6 @@
 // In-popup dragging uses pointer events so it stays inside the popup window.
 export function beginPointerDrag(event, { item, label, onStart, onTarget, onFinish }) {
-  if (event.button !== 0 || event.isPrimary === false) return () => {};
+  if (event.button !== 0 || event.isPrimary === false) return () => { };
   const source = event.currentTarget;
   const doc = source.ownerDocument;
   const win = doc.defaultView;
@@ -25,9 +25,11 @@ export function beginPointerDrag(event, { item, label, onStart, onTarget, onFini
       } else {
         const row = hit.closest("[data-link-index]");
         const rect = row?.getBoundingClientRect();
-        next = { sessionId, index: row
-          ? Number(row.dataset.linkIndex) + (point.y > rect.top + rect.height / 2 ? 1 : 0)
-          : Number(card.dataset.linkCount) };
+        next = {
+          sessionId, index: row
+            ? Number(row.dataset.linkIndex) + (point.y > rect.top + rect.height / 2 ? 1 : 0)
+            : Number(card.dataset.linkCount)
+        };
       }
     }
     if (target?.sessionId !== next?.sessionId || target?.edge !== next?.edge || target?.index !== next?.index) {
