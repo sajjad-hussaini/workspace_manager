@@ -1,0 +1,86 @@
+.tag-input-field>label {
+    flex-direction: row;
+}
+
+.tag-input-box {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 5px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+}
+
+.tag-input-box:focus-within {
+    border-color: #7957f5;
+    box-shadow: 0 0 0 3px rgb(121 87 245 / 15%);
+}
+
+.new-workspace-dialog .tag-input-box input {
+    flex: 1 1 110px;
+    min-width: 80px;
+    width: auto;
+    padding: 3px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.tag-input-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 3px 6px;
+    border-radius: 5px;
+    background: var(--primary-light);
+    color: var(--primary-hover);
+    font-size: 12px;
+}
+
+.tag-input-chip>span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.tag-input-chip button {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    padding: 0;
+    width: 18px;
+    height: 18px;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.tag-input-chip button:hover {
+    background: var(--primary-border);
+}
+
+.tag-input-chip .ui-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.new-workspace-dialog .tag-input-hint {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+:root[data-theme="dark"] .tag-input-chip {
+    background: #2d2241;
+    color: #c4b5fd;
+}
+
+:root[data-theme="dark"] .tag-input-chip button:hover {
+    background: #44335f;
+}

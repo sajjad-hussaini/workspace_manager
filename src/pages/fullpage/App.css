@@ -1095,6 +1095,8 @@
 }
 
 .modern-ws-tag-badge {
+  border: 0;
+  cursor: pointer;
   display: inline-block;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -1829,6 +1831,20 @@
 }
 
 .modern-tags-popover ul { list-style: none; margin: 0; padding: 0; }
+.modern-tag-search {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.modern-tag-search:hover,
+.modern-ws-tag-badge:hover { color: var(--primary); }
 .modern-tags-popover li {
   padding: 7px 4px;
   font-size: 11px;

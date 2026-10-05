@@ -1,6 +1,6 @@
 export default function SearchHighlight({ text = "", query = "" }) {
   const value = String(text ?? "");
-  const term = query.trim().toLowerCase();
+  const term = query.trim().replace(/^#/, "").toLowerCase();
   if (!term) return value;
   const parts = [];
   const lower = value.toLowerCase();

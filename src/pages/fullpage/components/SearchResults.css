@@ -80,6 +80,8 @@
 .search-workspace-link:hover { text-decoration: underline; }
 .search-tab-tag { display: inline-flex; align-items: center; gap: 4px; margin-left: 7px; overflow-wrap: anywhere; }
 .search-tab-tag .ui-icon { width: 11px; height: 11px; flex-basis: 11px; }
+.search-tab-tag { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.search-tab-tag:hover { color: var(--primary); }
 .search-tab-open { display: grid; place-items: center; align-self: center; width: 30px; height: 30px; flex: 0 0 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted-soft); cursor: pointer; }
 .search-tab-open:hover { background: var(--surface-hover); color: var(--primary); }
 .search-tab-open .ui-icon { width: 13px; height: 13px; }

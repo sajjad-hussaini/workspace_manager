@@ -1,7 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { normalizeTag } from "../../../lib/tags";
 
-export default function TagList({ tags = [], className = "", label = "Tags" }) {
+export default function TagList({ tags = [], className = "", label = "Tags", onTagClick }) {
   const items = tags.filter((tag) => typeof tag === "string" && tag.trim());
   const [active, setActive] = useState(null);
   const [position, setPosition] = useState(null);
@@ -25,7 +26,7 @@ export default function TagList({ tags = [], className = "", label = "Tags" }) {
   function closeSoon() {
     keepOpen();
     closeTimer.current = setTimeout(() => {
-      if (groupRef.current?.contains(document.activeElement) || groupRef.current?.matches(":hover") || popoverRef.current?.matches(":hover")) return;
+      if (groupRef.current?.contains(document.activeElement) || popoverRef.current?.contains(document.activeElement) || groupRef.current?.matches(":hover") || popoverRef.current?.matches(":hover")) return;
       setActive(null);
     }, 140);
   }
@@ -74,10 +75,14 @@ export default function TagList({ tags = [], className = "", label = "Tags" }) {
   const visibleTags = active === "more" ? items.slice(1) : [items[0]];
   const triggerProps = (name) => ({
     type: "button",
-    "aria-describedby": active === name ? id : undefined,
+    "aria-controls": active === name ? id : undefined,
     onPointerEnter: (event) => show(event, name),
     onFocus: (event) => show(event, name),
-    onClick: (event) => { event.stopPropagation(); show(event, name); },
+    onClick: (event) => {
+      event.stopPropagation();
+      if (name === "first" && onTagClick) { setActive(null); onTagClick(items[0]); }
+      else show(event, name);
+    },
   });
 
   return (
@@ -92,7 +97,7 @@ export default function TagList({ tags = [], className = "", label = "Tags" }) {
         if (event.key === "Escape") setActive(null);
       }}
     >
-      <button className="modern-tag-chip" {...triggerProps("first")}>{items[0]}</button>
+      <button className="modern-tag-chip" title={`Search #${normalizeTag(items[0])}`} {...triggerProps("first")}>#{normalizeTag(items[0])}</button>
       {items.length > 1 && (
         <button className="modern-tag-more" aria-label={`${items.length - 1} more tags`} {...triggerProps("more")}>
           +{items.length - 1}
@@ -102,15 +107,20 @@ export default function TagList({ tags = [], className = "", label = "Tags" }) {
         <div
           ref={popoverRef}
           id={id}
-          role="tooltip"
+          role="group"
+          aria-label="Tags"
           className="modern-tags-popover"
           style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }}
           onPointerEnter={keepOpen}
           onPointerLeave={closeSoon}
+          onFocus={keepOpen}
+          onBlur={closeSoon}
           onClick={(event) => event.stopPropagation()}
         >
           <span className="modern-tags-popover-heading">TAGS</span>
-          <ul>{visibleTags.map((tag, index) => <li key={index}>{tag}</li>)}</ul>
+          <ul>{visibleTags.map((tag, index) => <li key={index}>
+            <button type="button" className="modern-tag-search" onClick={() => { setActive(null); onTagClick?.(tag); }}>#{normalizeTag(tag)}</button>
+          </li>)}</ul>
         </div>,
         document.body
       )}

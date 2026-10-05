@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Icon, LinkFavicon } from "./Icons";
 import TagList from "./TagList";
 import SearchHighlight from "./SearchHighlight";
+import { normalizeTag } from "../../../lib/tags";
 
 function SelectedOpenOptions({ onOpenCurrent, onOpenNewWindow }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -110,6 +111,7 @@ export default function WorkspaceCard({
   session,
   popup = false,
   searchQuery = "",
+  onTagClick,
   index = 0,
   expanded = false,
   selectedIndexes = new Set(),
@@ -234,11 +236,12 @@ export default function WorkspaceCard({
               </>
             )}
             {Array.isArray(session.tags) && session.tags.length > 0 && (
-              <span className="modern-ws-tags">
+              <span className="modern-ws-tags" onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
                 {session.tags.map((tag, i) => (
-                  <span key={i} className="modern-ws-tag-badge">
-                    <SearchHighlight text={tag} query={searchQuery} />
-                  </span>
+                  <button key={i} type="button" className="modern-ws-tag-badge" title={`Search #${normalizeTag(tag)}`}
+                    onClick={(event) => { event.stopPropagation(); onTagClick?.(tag); }}>
+                    #<SearchHighlight text={normalizeTag(tag)} query={searchQuery} />
+                  </button>
                 ))}
               </span>
             )}
@@ -472,7 +475,7 @@ export default function WorkspaceCard({
                   </button>
 
                   {Array.isArray(tab.tags) && tab.tags.length > 0 && (
-                    <TagList tags={tab.tags} className="modern-link-tags" label="Link tags" />
+                    <TagList tags={tab.tags} className="modern-link-tags" label="Link tags" onTagClick={onTagClick} />
                   )}
 
                   <div className="modern-link-actions">

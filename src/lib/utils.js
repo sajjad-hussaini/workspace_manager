@@ -1,4 +1,5 @@
 // src/lib/utils.js
+import { tagsMatchSearch } from "./tags.js";
 
 export function getLinkKey(url) {
   try {
@@ -123,6 +124,10 @@ export function sortSessions(sessions, sortKey) {
 }
 
 export function workspaceMatchesSearch(session, term) {
+  term = term.trim().toLowerCase();
+  if (term.startsWith("#")) {
+    return tagsMatchSearch(session.tags, term) || (session.tabs || []).some((tab) => tagsMatchSearch(tab.tags, term));
+  }
   const tagsText = Array.isArray(session.tags) ? session.tags.join(" ") : (session.tags || "");
   const workspaceText = [session.title, session.note, tagsText].filter(Boolean).join(" ").toLowerCase();
   const linkText = (session.tabs || []).map((t) => {
@@ -133,6 +138,7 @@ export function workspaceMatchesSearch(session, term) {
 }
 
 export function tabMatchesSearch(tab, term) {
+  if (term.trim().startsWith("#")) return tagsMatchSearch(tab.tags, term);
   const tags = Array.isArray(tab.tags) ? tab.tags.join(" ") : (tab.tags || "");
   return [tab.title, tab.url, tab.note, tags].filter(Boolean).join(" ").toLowerCase().includes(term.trim().toLowerCase());
 }

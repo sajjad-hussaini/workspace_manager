@@ -3,8 +3,9 @@ import { tabMatchesSearch } from "../../../lib/utils";
 import { Icon, LinkFavicon } from "./Icons";
 import SearchHighlight from "./SearchHighlight";
 import "./SearchResults.css";
+import { normalizeTag } from "../../../lib/tags";
 
-export default function SearchResults({ query, sessions, loading, renderWorkspace, onOpenTab, onShowWorkspace, getFaviconUrl }) {
+export default function SearchResults({ query, sessions, loading, renderWorkspace, onOpenTab, onShowWorkspace, onTagClick, getFaviconUrl }) {
   const [showAllTabs, setShowAllTabs] = useState(false);
   const tabResults = useMemo(() => sessions.flatMap((session) =>
     (session.tabs || []).flatMap((tab, tabIndex) =>
@@ -48,7 +49,7 @@ export default function SearchResults({ query, sessions, loading, renderWorkspac
                       <div className="search-tab-context">
                         <span>In:</span>
                         <button className="search-workspace-link" type="button" onClick={() => onShowWorkspace(session.id)}>{session.title || "Untitled workspace"}</button>
-                        {tags.map((tag, index) => <span className="search-tab-tag" key={index}><Icon name="tag" /><SearchHighlight text={tag} query={query} /></span>)}
+                        {tags.map((tag, index) => <button type="button" className="search-tab-tag" key={index} onClick={() => onTagClick(tag)} title={`Search #${normalizeTag(tag)}`}>#<SearchHighlight text={normalizeTag(tag)} query={query} /></button>)}
                       </div>
                     </div>
                     <button className="search-tab-open" type="button" aria-label={`Open ${tab.title || tab.url}`} title="Open tab" onClick={() => onOpenTab(session, tabIndex)}><Icon name="external" /></button>

@@ -12,6 +12,8 @@ import {
   workspaceMatchesSearch
 } from "../../lib/utils";
 import WorkspaceCard from "./components/WorkspaceCard";
+import TagInput from "./components/TagInput";
+import { normalizeTag, parseTags } from "../../lib/tags";
 import SearchResults from "./components/SearchResults";
 import ConfirmDialog from "./components/ConfirmDialog";
 import Toast from "./components/Toast";
@@ -105,11 +107,12 @@ export default function App({ popup = false }) {
   // Search debounce — 3-char minimum
   useEffect(() => {
     const trimmed = searchInput.trim();
-    if (trimmed.length < 3) {
+    const isTagSearch = trimmed.startsWith("#") && normalizeTag(trimmed).length > 0;
+    if (trimmed.length < 3 && !isTagSearch) {
       const t = setTimeout(() => setActiveSearch(""), 0);
       return () => clearTimeout(t);
     }
-    if (trimmed.length >= 3) {
+    if (trimmed.length >= 3 || isTagSearch) {
       const t = setTimeout(() => setActiveSearch(trimmed.toLowerCase()), 220);
       return () => clearTimeout(t);
     }
@@ -230,7 +233,7 @@ export default function App({ popup = false }) {
         return;
       }
       const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
-      const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+      const parsedTags = parseTags(tags);
       const uniqueTabs = getUniqueTabs(tabs);
       const existing = sessions.find((s) => s.title?.trim().toLowerCase() === trimmedTitle.toLowerCase());
 
@@ -530,7 +533,7 @@ export default function App({ popup = false }) {
       return;
     }
     const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
-    const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+    const parsedTags = parseTags(tags);
 
     if (editingSession) {
       await persistSession({
@@ -633,7 +636,7 @@ export default function App({ popup = false }) {
         title: linkTitle.trim() || trimmedUrl,
         url: trimmedUrl,
         note: linkNote.trim(),
-        tags: linkTags.split(",").map((t) => t.trim()).filter(Boolean),
+        tags: parseTags(linkTags),
         reminderAt: linkReminderAt ? new Date(linkReminderAt).toISOString() : ""
       };
       await persistSession({ ...session, tabs: [...updatedTabs, newTab] });
@@ -650,7 +653,7 @@ export default function App({ popup = false }) {
       title: linkTitle.trim(),
       url: trimmedUrl,
       note: linkNote.trim(),
-      tags: linkTags.split(",").map((t) => t.trim()).filter(Boolean),
+      tags: parseTags(linkTags),
       reminderAt: linkReminderAt ? new Date(linkReminderAt).toISOString() : ""
     };
     await persistSession({ ...session, tabs: updatedTabs });
@@ -816,12 +819,23 @@ export default function App({ popup = false }) {
     window.close();
   }
 
+  function searchByTag(tag) {
+    const normalized = normalizeTag(tag);
+    if (!normalized) return;
+    const query = `#${normalized}`;
+    setActiveNav("all");
+    setSearchInput(query);
+    setActiveSearch(query.toLowerCase());
+    setOpenMenuId(null);
+  }
+
   const renderWorkspace = (session, index) => (
     <WorkspaceCard
       key={session.id}
       session={session}
       popup={popup}
       searchQuery={!popup ? activeSearch : ""}
+      onTagClick={searchByTag}
       index={index}
       expanded={expandedIds.has(session.id)}
       selectedIndexes={selectedByWorkspace.get(session.id) || new Set()}
@@ -1016,6 +1030,7 @@ export default function App({ popup = false }) {
             sessions={displayedSessions}
             loading={loading}
             renderWorkspace={renderWorkspace}
+            onTagClick={searchByTag}
             onOpenTab={handleOpenTab}
             onShowWorkspace={(sessionId) => {
               setExpandedIds((previous) => new Set(previous).add(sessionId));
@@ -1190,7 +1205,7 @@ export default function App({ popup = false }) {
               <button onClick={closeWorkspaceModal} type="button" aria-label="Close"><Icon name="close" /></button>
             </div>
             <label>Workspace name<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Design research" autoFocus /></label>
-            <label>Tags <span>(comma separated, optional)</span><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. work, research, urgent" /></label>
+            <TagInput value={tags} onChange={setTags} />
             <label>Note <span>(optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What is this workspace for?" rows="3" /></label>
             <label>Reminder <span>(optional)</span><input type="datetime-local" min={reminderMinDate} value={reminderAt} onChange={(e) => setReminderAt(e.target.value)} /></label>
             <div className="new-workspace-actions">
@@ -1224,7 +1239,7 @@ export default function App({ popup = false }) {
             <label>Title<input value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} placeholder="Link title" autoFocus /></label>
             <label>URL<input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://example.com" /></label>
             <label>Notes <span>(optional)</span><textarea value={linkNote} onChange={(e) => setLinkNote(e.target.value)} placeholder="What is this link for?" rows="3" /></label>
-            <label>Tags <span>(comma separated)</span><input value={linkTags} onChange={(e) => setLinkTags(e.target.value)} placeholder="research, priority" /></label>
+            <TagInput key={`${editingLink.session.id}:${editingLink.tabIndex}`} value={linkTags} onChange={setLinkTags} />
             <label>Reminder <span>(optional)</span><input type="datetime-local" min={reminderMinDate} value={linkReminderAt} onChange={(e) => setLinkReminderAt(e.target.value)} /></label>
             <div className="new-workspace-actions">
               <button className="new-workspace-cancel" onClick={closeLinkEditor} type="button">Cancel</button>
