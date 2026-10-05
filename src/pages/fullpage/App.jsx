@@ -19,7 +19,7 @@ import ReminderStack from "./components/ReminderStack";
 import ReminderSummary from "./components/ReminderSummary";
 import RemindersPage from "./components/RemindersPage";
 import { collectReminders, toLocalDateTime } from "../../lib/reminders";
-import { Icon } from "./components/Icons";
+import { Icon, LinkFavicon } from "./components/Icons";
 
 export default function App({ popup = false }) {
   const [sessions, setSessions] = useState([]);
@@ -1035,21 +1035,9 @@ export default function App({ popup = false }) {
               <div className="modern-browser-header">
                 <strong>Current Browser</strong>
                 <div className="modern-browser-favicons">
-                  {currentTabs.slice(0, 5).map((tab, idx) => {
-                    const fallback = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(tab.url || tab.title)}&sz=24`;
-                    return (
-                      <img
-                        key={tab.id ?? idx}
-                        src={tab.favicon || fallback}
-                        alt=""
-                        className="modern-tab-dot-icon"
-                        onError={(e) => {
-                          if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
-                          else e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    );
-                  })}
+                  {currentTabs.slice(0, 5).map((tab, idx) => (
+                    <LinkFavicon key={tab.url || tab.id || idx} tab={tab} />
+                  ))}
                   {currentTabs.length > 5 && (
                     <span className="modern-favicons-extra">+{currentTabs.length - 5}</span>
                   )}

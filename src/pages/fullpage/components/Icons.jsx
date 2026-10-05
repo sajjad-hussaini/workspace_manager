@@ -77,13 +77,13 @@ function getPaletteForText(str = "") {
 }
 
 export function LinkFavicon({ tab, getFaviconUrl }) {
-  const [failed, setFailed] = useState(false);
+  const [failedSource, setFailedSource] = useState(null);
   const source = tab.favicon || (getFaviconUrl ? getFaviconUrl(tab.url) : "");
   const title = (tab.title || tab.url || "Link").trim();
   const letter = title.charAt(0).toUpperCase();
   const palette = getPaletteForText(tab.url || title);
 
-  if (!source || failed) {
+  if (!source || failedSource === source) {
     return (
       <span
         className="link-avatar"
@@ -96,17 +96,13 @@ export function LinkFavicon({ tab, getFaviconUrl }) {
   }
 
   return (
-    <span
-      className="link-avatar"
-      style={{ backgroundColor: palette.bg, color: palette.text }}
-    >
+    <span className="link-avatar">
       <img
         src={source}
         alt=""
         className="link-avatar-img"
-        onError={() => setFailed(true)}
+        onError={() => setFailedSource(source)}
       />
     </span>
   );
 }
-
