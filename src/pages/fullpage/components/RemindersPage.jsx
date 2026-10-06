@@ -20,7 +20,7 @@ function ReminderRow({ reminder, now, onOpen, onSnooze, onEdit, onRemove }) {
     </div>
     <div className="reminders-row-actions">
       <button type="button" className="reminders-open" disabled={busy} onClick={() => run(onOpen)} aria-label={`Open ${reminder.title}`}><Icon name="external" /> Open</button>
-      <button type="button" disabled={busy} onClick={() => run(onSnooze)} title="Remind me in 1 hour" aria-label={`Snooze ${reminder.title} for 1 hour`}><Icon name="clock" /> Snooze <span className="reminders-snooze-duration">1h</span></button>
+      {/* <button type="button" disabled={busy} onClick={() => run(onSnooze)} title="Remind me in 1 hour" aria-label={`Snooze ${reminder.title} for 1 hour`}><Icon name="clock" /> Snooze <span className="reminders-snooze-duration">1h</span></button> */}
       <button type="button" disabled={busy} onClick={() => onEdit(reminder)} aria-label={`Edit reminder for ${reminder.title}`}><Icon name="edit" /> Edit</button>
       <button type="button" className="reminders-remove" disabled={busy} onClick={() => run(onRemove)} aria-label={`Remove reminder for ${reminder.title}`} title="Remove reminder"><Icon name="trash" /></button>
     </div>
@@ -40,7 +40,7 @@ export default function RemindersPage({ reminders, now, search, loading, onBack,
     <button type="button" className="reminders-back" onClick={onBack}><Icon name="arrowRight" /> Back to All Workspaces</button>
     <header className="reminders-page-header">
       <h1 id="reminders-title" className="modern-main-heading" ref={heading} tabIndex={-1}>Reminders</h1>
-      <p className="modern-subtitle">Keep track of upcoming and overdue workspace and link reminders.</p>
+      <p className="modern-subtitle">Keep track of upcoming and overdue  and link reminders.</p>
       <p className="reminders-count" role="status">{matching.length} reminder{matching.length === 1 ? "" : "s"}{search && " matching your search"}<span aria-hidden="true"> · </span><span className={overdue ? "reminder-overdue-text" : ""}>{overdue} overdue</span></p>
     </header>
     <div className="reminders-filters" role="group" aria-label="Filter reminders">
