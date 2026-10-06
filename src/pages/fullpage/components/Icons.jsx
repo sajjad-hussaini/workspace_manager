@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 export function Icon({ name }) {
   const paths = {
+    note: <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" /><path d="M14 3v6h6" /></>,
     grip: <>{[5, 12, 19].flatMap((y) => [8, 16].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="currentColor" stroke="none" />))}</>,
     move: <><path d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4" /></>,
     close: <><path d="m6 6 12 12M18 6 6 18" /></>,

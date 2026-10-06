@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { tabMatchesSearch } from "../../../lib/utils";
 import { Icon, LinkFavicon } from "./Icons";
 import SearchHighlight from "./SearchHighlight";
+import SearchNote from "./SearchNote";
+import TabIndicators from "./TabIndicators";
 import "./SearchResults.css";
 import { normalizeTag } from "../../../lib/tags";
 
@@ -46,9 +48,11 @@ export default function SearchResults({ query, sessions, loading, renderWorkspac
                         <SearchHighlight text={tab.title || tab.url || "Untitled tab"} query={query} />
                       </button>
                       <div className="search-tab-url" title={tab.url}><SearchHighlight text={displayUrl} query={query} /></div>
+                      <SearchNote note={tab.note} query={query} />
                       <div className="search-tab-context">
                         <span>In:</span>
                         <button className="search-workspace-link" type="button" onClick={() => onShowWorkspace(session.id)}>{session.title || "Untitled workspace"}</button>
+                        <TabIndicators tab={tab} />
                         {tags.map((tag, index) => <button type="button" className="search-tab-tag" key={index} onClick={() => onTagClick(tag)} title={`Search #${normalizeTag(tag)}`}>#<SearchHighlight text={normalizeTag(tag)} query={query} /></button>)}
                       </div>
                     </div>

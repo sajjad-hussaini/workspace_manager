@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Icon, LinkFavicon } from "./Icons";
 import TagList from "./TagList";
+import TabIndicators from "./TabIndicators";
 import SearchHighlight from "./SearchHighlight";
+import SearchNote from "./SearchNote";
 import { normalizeTag } from "../../../lib/tags";
 
 function SelectedOpenOptions({ onOpenCurrent, onOpenNewWindow }) {
@@ -246,6 +248,7 @@ export default function WorkspaceCard({
               </span>
             )}
           </div>
+          <SearchNote note={session.note} query={searchQuery} />
         </div>
 
         {/* Right actions: Split Open Button, Chevron Toggle, More ⋮ Button */}
@@ -474,6 +477,7 @@ export default function WorkspaceCard({
                     </div>
                   </button>
 
+                  <TabIndicators tab={tab} />
                   {Array.isArray(tab.tags) && tab.tags.length > 0 && (
                     <TagList tags={tab.tags} className="modern-link-tags" label="Link tags" onTagClick={onTagClick} />
                   )}

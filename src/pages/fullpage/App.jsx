@@ -826,6 +826,7 @@ export default function App({ popup = false }) {
     setActiveNav("all");
     setSearchInput(query);
     setActiveSearch(query.toLowerCase());
+    setExpandedIds(new Set());
     setOpenMenuId(null);
   }
 
@@ -834,7 +835,7 @@ export default function App({ popup = false }) {
       key={session.id}
       session={session}
       popup={popup}
-      searchQuery={!popup ? activeSearch : ""}
+      searchQuery={activeSearch}
       onTagClick={searchByTag}
       index={index}
       expanded={expandedIds.has(session.id)}
@@ -926,14 +927,14 @@ export default function App({ popup = false }) {
             <span className="modern-nav-text">All Workspaces</span>
           </button>
 
-          <button
+          {/* <button
             className={`modern-nav-item ${activeNav === "recent" ? "is-active" : ""}`}
             onClick={() => setActiveNav("recent")}
             type="button"
           >
             <span className="modern-nav-icon"><Icon name="clock" /></span>
             <span className="modern-nav-text">Recent</span>
-          </button>
+          </button> */}
 
           <button
             className={`modern-nav-item ${activeNav === "archived" ? "is-active" : ""}`}
@@ -971,7 +972,7 @@ export default function App({ popup = false }) {
         {!popup && <div className="modern-sidebar-card">
           <strong className="modern-card-title">Browser extension</strong>
           <p className="modern-card-desc">Save and restore tabs without leaving Chrome.</p>
-          <button
+          {/* <button
             className="modern-card-link"
             onClick={() => {
               const url = chrome?.runtime?.getURL ? chrome.runtime.getURL("src/pages/popup/index.html") : "/src/pages/popup/index.html";
@@ -981,7 +982,7 @@ export default function App({ popup = false }) {
           >
             <span>Open popup preview</span>
             <Icon name="arrowRight" />
-          </button>
+          </button> */}
         </div>}
       </aside>
 

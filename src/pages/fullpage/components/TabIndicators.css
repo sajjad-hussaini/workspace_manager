@@ -1,0 +1,50 @@
+.tab-indicators {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tab-indicator {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--slate-500);
+  cursor: help;
+}
+
+.tab-indicator .ui-icon { width: 14px; height: 14px; }
+.tab-indicator:hover,
+.tab-indicator:focus-visible { background: var(--primary-light); color: var(--primary-hover); }
+.tab-indicator:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.tab-indicator-tooltip {
+  position: fixed;
+  z-index: 80;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  max-height: min(260px, calc(100dvh - 16px));
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--slate-700);
+  box-shadow: 0 6px 20px rgb(15 23 42 / .12);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.tab-indicator-tooltip strong { display: block; margin-bottom: 4px; font-size: 11px; }
+.tab-indicator-tooltip > div { white-space: pre-wrap; }
+:root[data-theme="dark"] .tab-indicator { color: var(--slate-400); }
+:root[data-theme="dark"] .tab-indicator:hover,
+:root[data-theme="dark"] .tab-indicator:focus-visible { background: #35294d; color: #d8caff; }
+:root[data-theme="dark"] .tab-indicator-tooltip { background: #1b1d27; border-color: #303548; color: #e2e8f0; }

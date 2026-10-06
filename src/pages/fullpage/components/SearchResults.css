@@ -55,6 +55,15 @@
 .search-workspace-list .modern-ws-tag-badge mark { background: transparent; color: inherit; }
 
 .search-highlight { padding: 0 1px; border-radius: 2px; background: #e9d5ff; color: inherit; }
+.search-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.search-note-label { font-weight: 600; }
 .search-tab-row { display: flex; align-items: flex-start; gap: 15px; padding: 19px 20px; }
 .search-tab-row + .search-tab-row { border-top: 1px solid var(--border-soft); }
 .search-tab-row .link-avatar { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 11px; }
