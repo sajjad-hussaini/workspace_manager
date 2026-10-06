@@ -721,19 +721,18 @@
 
 .modern-summary-card.is-browser {
   position: relative;
-  border-left: 1px solid var(--slate-200);
-  overflow: visible;
+  overflow: hidden;
 }
 
 .modern-summary-card.is-browser::before {
   content: "";
   position: absolute;
   left: 0;
-  top: 12px;
-  bottom: 12px;
+  top: 0;
+  bottom: 0;
   width: 4px;
   background: var(--primary);
-  border-radius: 0 !important;
+  pointer-events: none;
 }
 
 .modern-browser-header {

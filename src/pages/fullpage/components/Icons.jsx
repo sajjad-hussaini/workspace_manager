@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function Icon({ name }) {
   const paths = {
@@ -77,13 +77,17 @@ function getPaletteForText(str = "") {
 }
 
 export function LinkFavicon({ tab, getFaviconUrl }) {
-  const [failedSource, setFailedSource] = useState(null);
-  const source = tab.favicon || (getFaviconUrl ? getFaviconUrl(tab.url) : "");
+  const [failedSources, setFailedSources] = useState([]);
+  // Chrome's cached icon also works when a site's icon URL requires its session.
+  const cachedSource = getFaviconUrl ? getFaviconUrl(tab.url) : "";
+  const sources = [...new Set([cachedSource, tab.favicon, tab.favIconUrl].filter(Boolean))];
+  const source = sources.find((candidate) => !failedSources.includes(candidate));
+  useEffect(() => { setFailedSources([]); }, [cachedSource, tab.url, tab.favicon, tab.favIconUrl]);
   const title = (tab.title || tab.url || "Link").trim();
   const letter = title.charAt(0).toUpperCase();
   const palette = getPaletteForText(tab.url || title);
 
-  if (!source || failedSource === source) {
+  if (!source) {
     return (
       <span
         className="link-avatar"
@@ -98,10 +102,11 @@ export function LinkFavicon({ tab, getFaviconUrl }) {
   return (
     <span className="link-avatar">
       <img
+        key={source}
         src={source}
         alt=""
         className="link-avatar-img"
-        onError={() => setFailedSource(source)}
+        onError={() => setFailedSources((previous) => [...previous, source])}
       />
     </span>
   );

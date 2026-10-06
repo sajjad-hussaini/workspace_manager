@@ -3,12 +3,12 @@ import pkg from "./package.json";
 
 export default defineManifest({
   manifest_version: 3,
-  name: "Workspace Saver",
+  name: "TabMorrow",
   version: pkg.version,
   description: "Save open tabs as organized workspaces and reopen them whenever you need them.",
-  permissions: ["tabs", "storage", "windows"],
+  permissions: ["tabs", "storage", "windows", "favicon"],
   action: {
-    default_title: "Workspace Saver",
+    default_title: "TabMorrow",
     default_popup: "src/pages/popup/index.html"
   },
   background: {

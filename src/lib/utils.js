@@ -57,7 +57,7 @@ export function formatDate(dateString) {
 }
 
 export function getFaviconUrl(pageUrl) {
-  if (!pageUrl) return "";
+  if (!pageUrl || !globalThis.chrome?.runtime?.getURL) return "";
   const faviconUrl = new URL(chrome.runtime.getURL("/_favicon/"));
   faviconUrl.searchParams.set("pageUrl", pageUrl);
   faviconUrl.searchParams.set("size", "32");

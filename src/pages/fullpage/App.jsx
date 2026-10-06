@@ -903,7 +903,7 @@ export default function App({ popup = false }) {
       <aside className="modern-sidebar">
         <div className="modern-brand">
           <span className="modern-brand-logo">W</span>
-          <span className="modern-brand-text">Workspace Manager</span>
+          <span className="modern-brand-text">TabMorrow</span>
           {popup && (
             <div className="modern-popup-header-actions">
               <button className="modern-theme-btn" type="button" onClick={toggleTheme} aria-label="Toggle theme" title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
@@ -1062,7 +1062,7 @@ export default function App({ popup = false }) {
                 <strong>Current Browser</strong>
                 <div className="modern-browser-favicons">
                   {currentTabs.slice(0, 5).map((tab, idx) => (
-                    <LinkFavicon key={tab.url || tab.id || idx} tab={tab} />
+                    <LinkFavicon key={tab.url || tab.id || idx} tab={tab} getFaviconUrl={getFaviconUrl} />
                   ))}
                   {currentTabs.length > 5 && (
                     <span className="modern-favicons-extra">+{currentTabs.length - 5}</span>
