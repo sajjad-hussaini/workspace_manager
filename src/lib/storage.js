@@ -2,6 +2,8 @@
 
 const PREFIX = "session_";
 const THEME_KEY = "tabWorkspacesTheme";
+const SORT_KEY = "tabWorkspacesSort";
+const SORT_OPTIONS = ["manual", "name-asc", "created-desc", "opened-desc"];
 const SYNC_ITEM_LIMIT_BYTES = 7500; // Chrome 8192 hard limit below which sync storage is guaranteed to work, but we leave some buffer for overhead
 
 function keyOf(id) {
@@ -55,6 +57,16 @@ export async function getTheme() {
 
 export async function persistTheme(theme) {
   await chrome.storage.local.set({ [THEME_KEY]: theme === "light" ? "light" : "dark" });
+}
+
+export async function getSortPreference() {
+  const stored = await chrome.storage.local.get(SORT_KEY);
+  return SORT_OPTIONS.includes(stored[SORT_KEY]) ? stored[SORT_KEY] : "manual";
+}
+
+export async function persistSortPreference(value) {
+  if (!SORT_OPTIONS.includes(value)) return;
+  await chrome.storage.local.set({ [SORT_KEY]: value });
 }
 
 // session on change listerner only callback if the change is relevant to sessions (i.e. key starts with PREFIX)

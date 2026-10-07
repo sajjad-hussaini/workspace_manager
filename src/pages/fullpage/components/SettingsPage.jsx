@@ -1,7 +1,18 @@
+import { useRef, useState } from "react";
 import { Icon } from "./Icons";
 import "./LibraryPages.css";
 
-export default function SettingsPage({ theme, onThemeChange, activeCount, archivedCount, tabCount, onExport }) {
+export default function SettingsPage({ theme, onThemeChange, sortKey, onSortChange, activeCount, archivedCount, tabCount, onExport, onBackup, onImport }) {
+  const fileInput = useRef(null);
+  const [importing, setImporting] = useState(false);
+
+  async function importFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try { await onImport(file); } finally { setImporting(false); event.target.value = ""; }
+  }
+
   return <section className="library-page settings-page" aria-labelledby="settings-title">
     <header className="library-page-header">
       <span className="modern-eyebrow">PREFERENCES</span>
@@ -14,11 +25,22 @@ export default function SettingsPage({ theme, onThemeChange, activeCount, archiv
         <div className="settings-theme-options" role="group" aria-label="Color theme">
           {[{ value: "light", label: "Light", icon: "sun" }, { value: "dark", label: "Dark", icon: "moon" }].map((option) => <button key={option.value} type="button" className={`settings-theme-option${theme === option.value ? " is-selected" : ""}`} aria-pressed={theme === option.value} onClick={() => onThemeChange(option.value)}><Icon name={option.icon} /><span>{option.label}</span>{theme === option.value && <Icon name="check" />}</button>)}
         </div>
+        <div className="settings-control-row">
+          <div><label htmlFor="settings-workspace-order">Workspace order</label><p>Choose how workspaces appear by default.</p></div>
+          <select id="settings-workspace-order" value={sortKey} onChange={(event) => onSortChange(event.target.value)}>
+            <option value="manual">My order</option>
+            <option value="name-asc">Name A–Z</option>
+            <option value="created-desc">Newest first</option>
+            <option value="opened-desc">Recently opened</option>
+          </select>
+        </div>
       </section>
       <section className="settings-panel" aria-labelledby="data-title">
         <div className="settings-panel-heading"><span className="settings-panel-icon"><Icon name="download" /></span><div><h2 id="data-title">Your data</h2><p>A quick look at what you have saved.</p></div></div>
         <div className="settings-stats"><div><strong>{activeCount}</strong><span>Workspaces</span></div><div><strong>{archivedCount}</strong><span>Archived</span></div><div><strong>{tabCount}</strong><span>Saved links</span></div></div>
         <div className="settings-export"><div><strong>Export workspaces</strong><p>Download your workspace and link details as a CSV file.</p></div><button type="button" className="library-button is-primary" onClick={onExport} disabled={activeCount + archivedCount === 0}><Icon name="download" /> Export CSV</button></div>
+        <div className="settings-export"><div><strong>Download backup</strong><p>Save all workspaces, archived items, notes and reminders in a JSON file.</p></div><button type="button" className="library-button" onClick={onBackup} disabled={activeCount + archivedCount === 0}><Icon name="download" /> Backup JSON</button></div>
+        <div className="settings-export"><div><strong>Import backup</strong><p>Add workspaces from a TabMorrow JSON backup. Existing workspaces stay in place.</p></div><input ref={fileInput} className="settings-file-input" type="file" accept=".json,application/json" onChange={importFile} aria-label="Choose backup JSON file" /><button type="button" className="library-button" disabled={importing} onClick={() => fileInput.current?.click()}><Icon name="plus" /> {importing ? "Importing…" : "Import JSON"}</button></div>
       </section>
     </div>
   </section>;

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { moveWorkspace, moveLink } from "../../lib/dragDrop";
 import { beginPointerDrag } from "../../lib/pointerDrag";
-import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme } from "../../lib/storage";
+import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme, getSortPreference, persistSortPreference } from "../../lib/storage";
 import {
   getCurrentTabs,
   getUniqueTabs,
@@ -14,6 +14,7 @@ import {
 import WorkspaceCard from "./components/WorkspaceCard";
 import TagInput from "./components/TagInput";
 import { normalizeTag, parseTags } from "../../lib/tags";
+import { parseWorkspaceBackup } from "../../lib/backup";
 import SearchResults from "./components/SearchResults";
 import ConfirmDialog from "./components/ConfirmDialog";
 import Toast from "./components/Toast";
@@ -99,6 +100,7 @@ export default function App({ popup = false }) {
   useEffect(() => {
     refresh();
     getTheme().then(setTheme);
+    getSortPreference().then(setSortKey);
     getCurrentTabs().then(setCurrentTabs);
     const unsubscribe = onSessionsChanged(refresh);
     return unsubscribe;
@@ -778,6 +780,7 @@ export default function App({ popup = false }) {
       setExpandedIds((previous) => new Set([...previous, target.sessionId]));
     } else {
       setSortKey("manual");
+      void persistSortPreference("manual");
       setActiveNav("all");
     }
     try {
@@ -833,6 +836,58 @@ export default function App({ popup = false }) {
     if (!sessions.length) return showToast("There are no workspaces to export.");
     exportWorkspacesToCsv(sessions);
     showToast(`${sessions.length} workspace${sessions.length === 1 ? "" : "s"} exported as CSV.`);
+  }
+
+  function handleExportJson() {
+    if (!sessions.length) return showToast("There are no workspaces to back up.");
+    const workspaces = sessions.map(({ storageArea, ...session }) => session);
+    const backup = { format: "tabmorrow-backup", version: 1, exportedAt: new Date().toISOString(), workspaces };
+    const blobUrl = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = `tabmorrow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    showToast(`${workspaces.length} workspace${workspaces.length === 1 ? "" : "s"} backed up as JSON.`);
+  }
+
+  async function handleImportJson(file) {
+    let importedCount = 0;
+    try {
+      const imported = parseWorkspaceBackup(await file.text());
+      if (!imported.length) return showToast("This backup has no workspaces to import.");
+      const names = new Set(sessions.map((session) => String(session.title || "").toLowerCase()));
+      const nextOrder = sessions.length ? Math.max(...sessions.map((session) => session.order ?? 0)) + 1 : 0;
+      for (const [index, session] of imported.entries()) {
+        let title = session.title.trim();
+        if (names.has(title.toLowerCase())) {
+          const base = `${title} (Imported)`;
+          title = base;
+          let number = 2;
+          while (names.has(title.toLowerCase())) title = `${base} ${number++}`;
+        }
+        names.add(title.toLowerCase());
+        const { id, storageArea, ...data } = session;
+        await persistSession({ ...data, id: `sess_${crypto.randomUUID()}`, title, order: nextOrder + index });
+        importedCount += 1;
+      }
+      await refresh();
+      showToast(`${imported.length} workspace${imported.length === 1 ? "" : "s"} imported.`);
+    } catch (error) {
+      console.error("Could not import backup:", error);
+      await refresh();
+      showToast(importedCount ? `${importedCount} workspaces imported before the import stopped. ${error.message}` : error.message || "Could not import this backup.");
+    }
+  }
+
+  async function changeSortPreference(value) {
+    setSortKey(value);
+    try {
+      await persistSortPreference(value);
+    } catch (error) {
+      console.error("Could not save workspace order preference:", error);
+      showToast("Could not save your sorting preference.");
+    }
   }
 
   async function toggleTheme() {
@@ -1041,10 +1096,14 @@ export default function App({ popup = false }) {
           {activeNav === "settings" ? <SettingsPage
             theme={theme}
             onThemeChange={async (next) => { setTheme(next); await persistTheme(next); }}
+            sortKey={sortKey}
+            onSortChange={changeSortPreference}
             activeCount={activeSessions.length}
             archivedCount={archivedSessions.length}
             tabCount={sessions.reduce((total, session) => total + (session.tabs?.length || 0), 0)}
             onExport={handleExportCsv}
+            onBackup={handleExportJson}
+            onImport={handleImportJson}
           /> : activeNav === "archived" ? <ArchivedPage
             sessions={archivedSessions}
             loading={loading}
