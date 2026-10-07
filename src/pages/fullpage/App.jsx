@@ -20,11 +20,15 @@ import Toast from "./components/Toast";
 import ReminderStack from "./components/ReminderStack";
 import ReminderSummary from "./components/ReminderSummary";
 import RemindersPage from "./components/RemindersPage";
+import ArchivedPage from "./components/ArchivedPage";
+import SettingsPage from "./components/SettingsPage";
 import { collectReminders, toLocalDateTime, getReminderMinDate, isValidReminderDate } from "../../lib/reminders";
 import { Icon, LinkFavicon } from "./components/Icons";
 
 export default function App({ popup = false }) {
   const [sessions, setSessions] = useState([]);
+  const activeSessions = useMemo(() => sessions.filter((session) => !session.archivedAt), [sessions]);
+  const archivedSessions = useMemo(() => sessions.filter((session) => session.archivedAt), [sessions]);
   const [loading, setLoading] = useState(true);
   const [currentTabs, setCurrentTabs] = useState([]);
 
@@ -131,12 +135,12 @@ export default function App({ popup = false }) {
   }, [openMenuId]);
 
   const dueReminders = useMemo(() => {
-    return sessions
+    return activeSessions
       .filter((s) => s.reminderAt && Date.parse(s.reminderAt) <= now)
       .sort((a, b) => Date.parse(b.reminderAt) - Date.parse(a.reminderAt));
-  }, [sessions, now]);
+  }, [activeSessions, now]);
 
-  const reminders = useMemo(() => collectReminders(sessions), [sessions]);
+  const reminders = useMemo(() => collectReminders(activeSessions), [activeSessions]);
 
   async function updateReminder(reminder, nextTime) {
     try {
@@ -177,26 +181,26 @@ export default function App({ popup = false }) {
 
   const visibleSessions = useMemo(() => {
     const filtered = activeSearch
-      ? sessions.filter((s) => workspaceMatchesSearch(s, activeSearch))
-      : sessions;
+      ? activeSessions.filter((s) => workspaceMatchesSearch(s, activeSearch))
+      : activeSessions;
     return sortSessions(filtered, sortKey);
-  }, [sessions, activeSearch, sortKey]);
+  }, [activeSessions, activeSearch, sortKey]);
 
   const [activeNav, setActiveNav] = useState("all");
   const [isEmptyWorkspace, setIsEmptyWorkspace] = useState(false);
 
   // ── Metrics ───────────────────────────────────────────────────────────────
   const totalSavedTabs = useMemo(() => {
-    return sessions.reduce((total, s) => total + (s.tabs?.length || 0), 0);
-  }, [sessions]);
+    return activeSessions.reduce((total, s) => total + (s.tabs?.length || 0), 0);
+  }, [activeSessions]);
 
   const updatedThisWeekCount = useMemo(() => {
     const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return sessions.filter((s) => {
+    return activeSessions.filter((s) => {
       const t = Date.parse(s.lastOpenedAt || s.createdAt);
       return !isNaN(t) && t >= oneWeekAgo;
     }).length;
-  }, [sessions]);
+  }, [activeSessions]);
 
   const displayedSessions = useMemo(() => {
     let list = visibleSessions;
@@ -235,7 +239,7 @@ export default function App({ popup = false }) {
       const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
       const parsedTags = parseTags(tags);
       const uniqueTabs = getUniqueTabs(tabs);
-      const existing = sessions.find((s) => s.title?.trim().toLowerCase() === trimmedTitle.toLowerCase());
+      const existing = activeSessions.find((s) => s.title?.trim().toLowerCase() === trimmedTitle.toLowerCase());
 
       if (existing) {
         const existingKeys = new Set((existing.tabs || []).map((t) => getLinkKey(t.url)));
@@ -410,6 +414,31 @@ export default function App({ popup = false }) {
         showToast(`"${session.title}" deleted.`);
       }
     });
+  }
+
+  async function archiveSession(session) {
+    try {
+      await persistSession({ ...session, archivedAt: new Date().toISOString() });
+      setOpenMenuId(null);
+      setSelectedByWorkspace((previous) => { const next = new Map(previous); next.delete(session.id); return next; });
+      await refresh();
+      showToast(`"${session.title}" archived.`);
+    } catch (error) {
+      console.error("Could not archive workspace:", error);
+      showToast("Could not archive workspace. Please try again.");
+    }
+  }
+
+  async function restoreSession(session) {
+    try {
+      const { archivedAt, ...restored } = session;
+      await persistSession(restored);
+      await refresh();
+      showToast(`"${session.title}" restored.`);
+    } catch (error) {
+      console.error("Could not restore workspace:", error);
+      showToast("Could not restore workspace. Please try again.");
+    }
   }
 
   function requestDeleteTab(session, tabIndex) {
@@ -733,11 +762,11 @@ export default function App({ popup = false }) {
     let moved;
     if (item.type === "workspace") {
       const ordered = activeNav === "recent"
-        ? [...sessions].sort((a, b) => Date.parse(b.lastOpenedAt || b.createdAt || 0) - Date.parse(a.lastOpenedAt || a.createdAt || 0))
-        : sortSessions(sessions, sortKey);
+        ? [...activeSessions].sort((a, b) => Date.parse(b.lastOpenedAt || b.createdAt || 0) - Date.parse(a.lastOpenedAt || a.createdAt || 0))
+        : sortSessions(activeSessions, sortKey);
       updates = moveWorkspace(ordered, displayedSessions.map((session) => session.id), item.sessionId, target.sessionId, target.edge);
     } else {
-      moved = moveLink(sessions, selectedByWorkspace, item.sessionId, item.index, target.sessionId, target.index);
+      moved = moveLink(activeSessions, selectedByWorkspace, item.sessionId, item.index, target.sessionId, target.index);
       updates = moved?.updates;
     }
     if (!updates) return;
@@ -868,6 +897,7 @@ export default function App({ popup = false }) {
         exportWorkspacesToCsv([session]);
         showToast("Workspace exported as CSV.");
       }}
+      onArchiveSession={() => archiveSession(session)}
       onDeleteSession={() => requestDeleteSession(session)}
       onToggleTabSelection={(tabIndex, checked) => toggleTabSelection(session.id, tabIndex, checked)}
       onOpenTab={(url, tabIndex) => handleOpenTab(session, tabIndex)}
@@ -938,10 +968,7 @@ export default function App({ popup = false }) {
 
           <button
             className={`modern-nav-item ${activeNav === "archived" ? "is-active" : ""}`}
-            onClick={() => {
-              setActiveNav("archived");
-              showToast("Archived workspaces coming soon.");
-            }}
+            onClick={() => { setActiveNav("archived"); setSearchInput(""); setActiveSearch(""); }}
             type="button"
           >
             <span className="modern-nav-icon"><Icon name="archive" /></span>
@@ -957,10 +984,7 @@ export default function App({ popup = false }) {
 
           <button
             className={`modern-nav-item ${activeNav === "settings" ? "is-active" : ""}`}
-            onClick={() => {
-              toggleTheme();
-              showToast(`Theme switched to ${theme === "dark" ? "light" : "dark"} mode.`);
-            }}
+            onClick={() => { setActiveNav("settings"); setSearchInput(""); setActiveSearch(""); }}
             type="button"
           >
             <span className="modern-nav-icon"><Icon name="settings" /></span>
@@ -990,7 +1014,7 @@ export default function App({ popup = false }) {
       <div className="modern-main-container">
         {/* Topbar */}
         {!popup && <header className="modern-topbar">
-          {searchField}
+          {activeNav !== "settings" && searchField}
 
           <div className="modern-topbar-actions">
             <button
@@ -1014,7 +1038,23 @@ export default function App({ popup = false }) {
         </header>}
 
         <main className="modern-content">
-          {activeNav === "reminders" ? <RemindersPage
+          {activeNav === "settings" ? <SettingsPage
+            theme={theme}
+            onThemeChange={async (next) => { setTheme(next); await persistTheme(next); }}
+            activeCount={activeSessions.length}
+            archivedCount={archivedSessions.length}
+            tabCount={sessions.reduce((total, session) => total + (session.tabs?.length || 0), 0)}
+            onExport={handleExportCsv}
+          /> : activeNav === "archived" ? <ArchivedPage
+            sessions={archivedSessions}
+            loading={loading}
+            search={searchInput.trim().toLowerCase()}
+            onClearSearch={() => { setSearchInput(""); setActiveSearch(""); }}
+            onBack={() => { setActiveNav("all"); setSearchInput(""); setActiveSearch(""); }}
+            onRestore={restoreSession}
+            onDelete={requestDeleteSession}
+            onOpen={handleOpenAll}
+          /> : activeNav === "reminders" ? <RemindersPage
             reminders={reminders}
             now={now}
             search={searchInput.trim().toLowerCase()}
@@ -1089,9 +1129,9 @@ export default function App({ popup = false }) {
             {!popup && <>
             <div className="modern-summary-card">
               <span className="modern-card-stat-label">Workspaces</span>
-              <div className="modern-card-stat-val">{sessions.length}</div>
+              <div className="modern-card-stat-val">{activeSessions.length}</div>
               <span className="modern-card-stat-sub">
-                {sessions.length === 0 ? "Ready for your first workspace" : `${updatedThisWeekCount} updated this week`}
+                {activeSessions.length === 0 ? "Ready for your first workspace" : `${updatedThisWeekCount} updated this week`}
               </span>
             </div>
 
@@ -1113,7 +1153,7 @@ export default function App({ popup = false }) {
               <div>
                 <h2 className="modern-section-title">My Workspaces</h2>
                 {!popup && <span className="modern-section-meta">
-                  {displayedSessions.length} of {sessions.length} workspaces
+                  {displayedSessions.length} of {activeSessions.length} workspaces
                 </span>}
               </div>
 
@@ -1136,7 +1176,7 @@ export default function App({ popup = false }) {
             <div className="modern-workspace-stack">
               {loading && <div className="final-empty">Loading workspaces…</div>}
 
-              {!loading && sessions.length === 0 && (
+              {!loading && activeSessions.length === 0 && (
                 <section className="workspace-empty-state" aria-labelledby="workspace-empty-title">
                   <svg className="workspace-empty-art" viewBox="0 0 144 104" fill="none" aria-hidden="true">
                     <ellipse cx="72" cy="94" rx="53" ry="6" fill="var(--empty-art-shadow)" />
@@ -1168,7 +1208,7 @@ export default function App({ popup = false }) {
                 </section>
               )}
 
-              {!loading && sessions.length > 0 && displayedSessions.length === 0 && (
+              {!loading && activeSessions.length > 0 && displayedSessions.length === 0 && (
                 <div className="final-empty">No workspaces match your search.</div>
               )}
 
@@ -1184,7 +1224,7 @@ export default function App({ popup = false }) {
           )}
 
           <footer className="modern-footer">
-            <span>{sessions.length} workspace{sessions.length === 1 ? "" : "s"} · {totalSavedTabs} saved tabs</span>
+            <span>{activeSessions.length} workspace{activeSessions.length === 1 ? "" : "s"} · {totalSavedTabs} saved tabs</span>
           </footer>
           </>}
         </main>

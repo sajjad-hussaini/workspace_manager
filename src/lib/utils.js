@@ -75,6 +75,7 @@ export function exportWorkspacesToCsv(sessions) {
     "Workspace Note",
     "Workspace Created At",
     "Workspace Last Opened At",
+    "Workspace Archived At",
     "Link Title",
     "Link URL",
     "Link Tags",
@@ -84,7 +85,7 @@ export function exportWorkspacesToCsv(sessions) {
 
   sessions.forEach((session) => {
     const wsTags = Array.isArray(session.tags) ? session.tags.join(", ") : (session.tags || "");
-    const workspaceColumns = [session.title || "", wsTags, session.note || "", session.createdAt || "", session.lastOpenedAt || ""];
+    const workspaceColumns = [session.title || "", wsTags, session.note || "", session.createdAt || "", session.lastOpenedAt || "", session.archivedAt || ""];
     const tabs = Array.isArray(session.tabs) ? session.tabs : [];
     if (!tabs.length) {
       rows.push([...workspaceColumns, "", "", "", ""]);

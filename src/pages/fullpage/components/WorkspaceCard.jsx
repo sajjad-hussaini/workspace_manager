@@ -133,6 +133,7 @@ export default function WorkspaceCard({
   onEditSession,
   onDuplicateSession,
   onExportSession,
+  onArchiveSession,
   onDeleteSession,
   onToggleTabSelection,
   onOpenTab,
@@ -361,6 +362,15 @@ export default function WorkspaceCard({
                   type="button"
                 >
                   <Icon name="download" /> <span>Export CSV</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    onArchiveSession();
+                  }}
+                  type="button"
+                >
+                  <Icon name="archive" /> <span>Archive Workspace</span>
                 </button>
                 <button
                   className="is-danger"
