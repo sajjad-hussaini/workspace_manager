@@ -1,5 +1,5 @@
 // In-popup dragging uses pointer events so it stays inside the popup window.
-export function beginPointerDrag(event, { item, label, onStart, onTarget, onFinish }) {
+export function beginPointerDrag(event, { item, onStart, onTarget, onFinish }) {
   if (event.button !== 0 || event.isPrimary === false) return () => { };
   const source = event.currentTarget;
   const doc = source.ownerDocument;
@@ -9,15 +9,21 @@ export function beginPointerDrag(event, { item, label, onStart, onTarget, onFini
   let point = origin;
   let active = false;
   let done = false;
-  let preview;
   let frame;
   let target = null;
 
   function locateTarget() {
     const hit = doc.elementFromPoint(point.x, point.y);
+    const gap = hit?.closest("[data-drop-session-id]");
     const card = hit?.closest("[data-workspace-id]");
     let next = null;
-    if (card) {
+    if (gap) {
+      next = item.type === "workspace" && gap.dataset.dropEdge
+        ? { sessionId: gap.dataset.dropSessionId, edge: gap.dataset.dropEdge }
+        : item.type === "link" && gap.dataset.dropIndex != null
+          ? { sessionId: gap.dataset.dropSessionId, index: Number(gap.dataset.dropIndex) }
+          : null;
+    } else if (card) {
       const sessionId = card.dataset.workspaceId;
       if (item.type === "workspace") {
         const rect = card.getBoundingClientRect();
@@ -41,10 +47,7 @@ export function beginPointerDrag(event, { item, label, onStart, onTarget, onFini
   function tick() {
     if (!active || done) return;
     const height = doc.documentElement.clientHeight;
-    const width = doc.documentElement.clientWidth;
-    preview.style.left = `${Math.max(8, Math.min(point.x + 12, width - preview.offsetWidth - 8))}px`;
-    preview.style.top = `${Math.max(8, Math.min(point.y + 14, height - preview.offsetHeight - 8))}px`;
-    if (point.x >= 0 && point.x <= width && point.y >= 0 && point.y <= height) {
+    if (point.x >= 0 && point.x <= doc.documentElement.clientWidth && point.y >= 0 && point.y <= height) {
       const edge = 48;
       const speed = point.y < edge ? -Math.ceil((edge - point.y) / 4)
         : point.y > height - edge ? Math.ceil((point.y - height + edge) / 4) : 0;
@@ -77,7 +80,6 @@ export function beginPointerDrag(event, { item, label, onStart, onTarget, onFini
     win.removeEventListener("keydown", keydown);
     source.removeEventListener("lostpointercapture", cancel);
     if (source.hasPointerCapture?.(pointerId)) source.releasePointerCapture(pointerId);
-    preview?.remove();
     doc.body.classList.remove("is-pointer-dragging");
     if (active) {
       // Swallow the click generated after release, so dragging never opens a link.
@@ -96,10 +98,6 @@ export function beginPointerDrag(event, { item, label, onStart, onTarget, onFini
       active = true;
       source.setPointerCapture?.(pointerId);
       doc.body.classList.add("is-pointer-dragging");
-      preview = doc.createElement("div");
-      preview.className = "modern-drag-preview";
-      preview.textContent = `${item.type === "workspace" ? "Workspace" : "Link"} · ${label}`;
-      doc.body.appendChild(preview);
       onStart();
       tick();
     }

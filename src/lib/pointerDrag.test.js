@@ -24,22 +24,28 @@ function setup(item = { type: "workspace", sessionId: "a" }) {
   const targets = [];
   let started = 0;
   let scrolled = 0;
-  let removed = false;
+  let dragging = false;
   const win = { ...events(), requestAnimationFrame(fn) { nextFrame = fn; return 1; }, cancelAnimationFrame() { nextFrame = null; }, setTimeout(fn) { timers.push(fn); }, getComputedStyle() { return { overflowY: "auto" }; } };
-  const body = { classList: { add() { }, remove() { } }, appendChild() { }, scrollHeight: 1200, clientHeight: 600, scrollBy(x, y) { scrolled += y; } };
-  const doc = { ...events(), defaultView: win, body, documentElement: { clientWidth: 440, clientHeight: 600 }, elementFromPoint() { return hit; }, createElement() { return { style: {}, offsetWidth: 160, offsetHeight: 40, remove() { removed = true; } }; } };
+  const body = { classList: { add() { dragging = true; }, remove() { dragging = false; } }, scrollHeight: 1200, clientHeight: 600, scrollBy(x, y) { scrolled += y; } };
+  const doc = { ...events(), defaultView: win, body, documentElement: { clientWidth: 440, clientHeight: 600 }, elementFromPoint() { return hit; } };
   const source = { ...events(), ownerDocument: doc, parentElement: body, setPointerCapture() { this.captured = true; }, hasPointerCapture() { return this.captured; }, releasePointerCapture() { this.captured = false; } };
   const cancel = beginPointerDrag({ currentTarget: source, button: 0, pointerId: 1, clientX: 50, clientY: 100 }, {
     item, label: "Example", onStart() { started++; }, onTarget(target) { targets.push(target); }, onFinish(target) { finished.push(target); },
   });
   return {
     win, doc, source, cancel, finished, targets,
-    get started() { return started; }, get scrolled() { return scrolled; }, get removed() { return removed; },
+    get started() { return started; }, get scrolled() { return scrolled; }, get dragging() { return dragging; },
     frame() { nextFrame?.(); }, flushTimers() { timers.forEach((fn) => fn()); },
     target(sessionId, rowIndex, top = 150, height = 50) {
       const card = { dataset: { workspaceId: sessionId, linkCount: "3" }, getBoundingClientRect: () => ({ top, height }) };
       const row = rowIndex == null ? null : { dataset: { linkIndex: String(rowIndex) }, getBoundingClientRect: () => ({ top, height }) };
-      hit = { closest(selector) { return selector === "[data-workspace-id]" ? card : row; } };
+       hit = { closest(selector) { return selector === "[data-workspace-id]" ? card : selector === "[data-link-index]" ? row : null; } };
+    },
+    gap(sessionId, { edge, index }) {
+      const dataset = { dropSessionId: sessionId };
+      if (edge) dataset.dropEdge = edge;
+      if (index != null) dataset.dropIndex = String(index);
+      hit = { closest(selector) { return selector === "[data-drop-session-id]" ? { dataset } : null; } };
     },
     outside() { hit = null; },
   };
@@ -65,7 +71,7 @@ test("workspace drag tracks a drop edge, releases capture, and suppresses the re
   drag.win.emit("pointerup", { clientY: 195 });
   assert.deepEqual(drag.finished, [{ sessionId: "b", edge: "after" }]);
   assert.equal(drag.source.captured, false);
-  assert.equal(drag.removed, true);
+  assert.equal(drag.dragging, false);
   assert.equal(drag.doc.emit("click").prevented, true);
   drag.flushTimers();
   assert.equal(drag.doc.count("click"), 0);
@@ -79,6 +85,23 @@ test("link drops resolve row gaps and collapsed workspace destinations", () => {
   drag.target("b");
   drag.win.emit("pointerup", { clientY: 190 });
   assert.deepEqual(drag.finished, [{ sessionId: "b", index: 3 }]);
+});
+
+test("placeholder gaps remain valid targets after rows shift", () => {
+  const drag = setup({ type: "link", sessionId: "a", index: 0 });
+  drag.gap("b", { index: 2 });
+  drag.win.emit("pointermove", { clientY: 190 });
+  assert.deepEqual(drag.targets.at(-1), { sessionId: "b", index: 2 });
+  drag.win.emit("pointerup", { clientY: 190 });
+  assert.deepEqual(drag.finished, [{ sessionId: "b", index: 2 }]);
+});
+
+test("workspace placeholder keeps its before or after edge", () => {
+  const drag = setup();
+  drag.gap("b", { edge: "after" });
+  drag.win.emit("pointermove", { clientY: 190 });
+  drag.win.emit("pointerup", { clientY: 190 });
+  assert.deepEqual(drag.finished, [{ sessionId: "b", edge: "after" }]);
 });
 
 test("release outside a workspace clears the last target", () => {
@@ -98,7 +121,7 @@ test("Escape, cancellation, lost capture and window blur never commit a move", (
     (type === "lostpointercapture" ? drag.source : drag.win).emit(type, { key: "Escape" });
     assert.deepEqual(drag.finished, [null], type);
     assert.equal(drag.win.count("pointermove"), 0);
-    assert.equal(drag.removed, true);
+    assert.equal(drag.dragging, false);
   }
 });
 

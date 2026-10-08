@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { Fragment, useState, useRef, useEffect } from "react";
 import { Icon, LinkFavicon } from "./Icons";
 import TagList from "./TagList";
 import TabIndicators from "./TabIndicators";
@@ -125,7 +125,7 @@ export default function WorkspaceCard({
   dropTarget,
   onDragStart,
   onDragOver,
-  onDragLeave,
+  onDragOverGap,
   onDrop,
   onDragEnd,
   onKeyboardMove,
@@ -157,8 +157,13 @@ export default function WorkspaceCard({
   const openMenuRef = useRef(null);
   const isDragging = dragItem?.type === "workspace" && dragItem.sessionId === session.id;
   const isLinkDrag = dragItem?.type === "link";
-  const workspaceDropEdge = dragItem?.type === "workspace" && !isDragging ? dropTarget?.edge : null;
   const isLinkTarget = isLinkDrag && Boolean(dropTarget);
+  const linkGapIndex = isLinkTarget && (dragItem.sessionId !== session.id || (dropTarget.index !== dragItem.index && dropTarget.index !== dragItem.index + 1)) ? dropTarget.index : null;
+  const linkGapHeight = Math.min(Math.max(dragItem?.height || 48, 48), 80);
+
+  function renderLinkGap(index) {
+    return <div className="modern-link-drop-placeholder" style={{ height: linkGapIndex === index ? linkGapHeight : 0 }} data-drop-session-id={session.id} data-drop-index={index} onDragOver={(event) => onDragOverGap(event, index)} aria-hidden="true" />;
+  }
 
   useEffect(() => {
     if (dragItem) setOpenDropdownActive(false);
@@ -204,9 +209,8 @@ export default function WorkspaceCard({
     <article
       data-workspace-id={session.id}
       data-link-count={tabs.length}
-      className={`modern-ws-card ${expanded ? "is-expanded" : ""} ${isMenuOpen || isLinkMenuOpen || openDropdownActive ? "has-open-menu" : ""} ${isDragging ? "is-dragging" : ""} ${workspaceDropEdge ? `drop-${workspaceDropEdge}` : ""} ${isLinkTarget ? "is-link-drop-target" : ""}`}
+      className={`modern-ws-card ${expanded ? "is-expanded" : ""} ${isMenuOpen || isLinkMenuOpen || openDropdownActive ? "has-open-menu" : ""} ${isDragging ? "is-dragging" : ""} ${isLinkTarget ? "is-link-drop-target" : ""}`}
       onDragOver={(event) => onDragOver(event)}
-      onDragLeave={onDragLeave}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >
@@ -389,12 +393,6 @@ export default function WorkspaceCard({
         </div>
       </div>
 
-      {!expanded && isLinkDrag && (
-        <div className={`modern-link-drop-zone ${isLinkTarget ? "is-active" : ""}`}>
-          <Icon name="move" /> Drop link into this workspace
-        </div>
-      )}
-
       {/* Expanded Links Section */}
       {expanded && (
         <div className="modern-ws-body">
@@ -443,17 +441,16 @@ export default function WorkspaceCard({
 
           {/* Links List */}
           {tabs.length === 0 ? (
-            <div className={`modern-no-links ${isLinkDrag ? "modern-link-drop-zone" : ""} ${isLinkTarget ? "is-active" : ""}`}>
-              {isLinkDrag && <Icon name="move" />}
-              <span>{isLinkDrag ? "Drop your link here" : "No links saved in this workspace yet."}</span>
+            <div className="modern-no-links">
+              <span>No links saved in this workspace yet.</span>
             </div>
           ) : (
             <div className="modern-links-list">
-              {tabs.map((tab, tabIndex) => (
+              {tabs.map((tab, tabIndex) => <Fragment key={`${session.id}-${tabIndex}`}>
+                {renderLinkGap(tabIndex)}
                 <div
                   data-link-index={tabIndex}
-                  className={`modern-link-row${selectedIndexes.has(tabIndex) ? " is-selected" : ""}${isLinkDrag && dragItem.sessionId === session.id && dragItem.index === tabIndex ? " is-dragging" : ""}${isLinkTarget && dropTarget.index === tabIndex ? " drop-before" : ""}${isLinkTarget && dropTarget.index === tabs.length && tabIndex === tabs.length - 1 ? " drop-after" : ""}`}
-                  key={`${session.id}-${tabIndex}`}
+                  className={`modern-link-row${selectedIndexes.has(tabIndex) ? " is-selected" : ""}${isLinkDrag && dragItem.sessionId === session.id && dragItem.index === tabIndex ? " is-dragging" : ""}`}
                   onDragOver={(event) => { if (isLinkDrag) onDragOver(event, tabIndex); }}
                 >
                   <input
@@ -512,7 +509,8 @@ export default function WorkspaceCard({
                     />
                   </div>
                 </div>
-              ))}
+              </Fragment>)}
+              {renderLinkGap(tabs.length)}
             </div>
           )}
         </div>

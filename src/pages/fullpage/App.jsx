@@ -734,32 +734,28 @@ export default function App({ popup = false }) {
     setDropTarget(null);
   }
 
-  function startDrag(event, item, label) {
+  function startDrag(event, item) {
     event.stopPropagation();
     if (movingRef.current) { event.preventDefault(); return; }
     dragRef.current = item;
-    setDragItem(item);
+    const source = event.currentTarget.closest(item.type === "workspace" ? ".modern-ws-card" : ".modern-link-row");
+    setDragItem({ ...item, height: source?.getBoundingClientRect().height });
     setOpenMenuId(null);
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("application/x-workspace-manager", JSON.stringify(item));
-    const preview = document.createElement("div");
-    preview.className = "modern-drag-preview";
-    preview.textContent = `${item.type === "workspace" ? "Workspace" : "Link"} · ${label}`;
-    document.body.appendChild(preview);
-    event.dataTransfer.setDragImage(preview, 24, 22);
-    setTimeout(() => preview.remove(), 0);
   }
 
-  function startPointerDrag(event, item, label) {
+  function startPointerDrag(event, item) {
     if (movingRef.current || event.button !== 0 || event.isPrimary === false) return;
     event.stopPropagation();
+    const source = event.currentTarget.closest(item.type === "workspace" ? ".modern-ws-card" : ".modern-link-row");
+    const height = source?.getBoundingClientRect().height;
     pointerCleanup.current?.();
     pointerCleanup.current = beginPointerDrag(event, {
       item,
-      label,
       onStart: () => {
         dragRef.current = item;
-        setDragItem(item);
+        setDragItem({ ...item, height });
         setOpenMenuId(null);
       },
       onTarget: (target) => {
@@ -932,6 +928,15 @@ export default function App({ popup = false }) {
     }
   }
 
+  function hoverDropGap(event, target) {
+    if (!dragRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    dropRef.current = target;
+    setDropTarget((previous) => previous?.sessionId === target.sessionId && previous?.edge === target.edge && previous?.index === target.index ? previous : target);
+  }
+
   async function changeTabWarning(value) {
     setTabWarning(value);
     try {
@@ -977,8 +982,9 @@ export default function App({ popup = false }) {
   }
 
   const renderWorkspace = (session, index) => (
+    <div className="modern-workspace-slot" key={session.id}>
+    <div className="modern-workspace-drop-placeholder" style={{ height: dragItem?.type === "workspace" && dragItem.sessionId !== session.id && dropTarget?.sessionId === session.id && dropTarget.edge === "before" ? Math.min(Math.max(dragItem.height || 76, 76), 160) : 0 }} data-drop-session-id={session.id} data-drop-edge="before" onDragOver={(event) => hoverDropGap(event, { sessionId: session.id, edge: "before" })} onDrop={handleDrop} aria-hidden="true" />
     <WorkspaceCard
-      key={session.id}
       session={session}
       popup={popup}
       searchQuery={activeSearch}
@@ -991,19 +997,14 @@ export default function App({ popup = false }) {
       pointerDrag={popup}
       onPointerDragStart={(event, tabIndex) => startPointerDrag(event, tabIndex == null
         ? { type: "workspace", sessionId: session.id }
-        : { type: "link", sessionId: session.id, index: tabIndex }, tabIndex == null ? session.title : session.tabs[tabIndex].title || session.tabs[tabIndex].url)}
+        : { type: "link", sessionId: session.id, index: tabIndex })}
       dragItem={dragItem}
       dropTarget={dropTarget?.sessionId === session.id ? dropTarget : null}
       onDragStart={(event, tabIndex) => startDrag(event, tabIndex == null
         ? { type: "workspace", sessionId: session.id }
-        : { type: "link", sessionId: session.id, index: tabIndex }, tabIndex == null ? session.title : session.tabs[tabIndex].title || session.tabs[tabIndex].url)}
+        : { type: "link", sessionId: session.id, index: tabIndex })}
       onDragOver={(event, tabIndex) => hoverDrop(event, session.id, tabIndex)}
-      onDragLeave={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget) && dropRef.current?.sessionId === session.id) {
-          dropRef.current = null;
-          setDropTarget(null);
-        }
-      }}
+      onDragOverGap={(event, tabIndex) => hoverDropGap(event, { sessionId: session.id, index: tabIndex })}
       onDrop={handleDrop}
       onDragEnd={endDrag}
       onKeyboardMove={(event, tabIndex) => keyboardMove(event, session, tabIndex)}
@@ -1030,6 +1031,8 @@ export default function App({ popup = false }) {
       onAddCurrentLinks={() => handleAddCurrentLinks(session)}
       getFaviconUrl={getFaviconUrl}
     />
+    <div className="modern-workspace-drop-placeholder" style={{ height: dragItem?.type === "workspace" && dragItem.sessionId !== session.id && dropTarget?.sessionId === session.id && dropTarget.edge === "after" ? Math.min(Math.max(dragItem.height || 76, 76), 160) : 0 }} data-drop-session-id={session.id} data-drop-edge="after" onDragOver={(event) => hoverDropGap(event, { sessionId: session.id, edge: "after" })} onDrop={handleDrop} aria-hidden="true" />
+    </div>
   );
 
   const searchField = (
