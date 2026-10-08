@@ -3,7 +3,9 @@
 const PREFIX = "session_";
 const THEME_KEY = "tabWorkspacesTheme";
 const SORT_KEY = "tabWorkspacesSort";
+const OPEN_BEHAVIOR_KEY = "tabWorkspacesOpenBehavior";
 const SORT_OPTIONS = ["manual", "name-asc", "created-desc", "opened-desc"];
+const OPEN_BEHAVIOR_OPTIONS = ["current", "new-window"];
 const SYNC_ITEM_LIMIT_BYTES = 7500; // Chrome 8192 hard limit below which sync storage is guaranteed to work, but we leave some buffer for overhead
 
 function keyOf(id) {
@@ -67,6 +69,16 @@ export async function getSortPreference() {
 export async function persistSortPreference(value) {
   if (!SORT_OPTIONS.includes(value)) return;
   await chrome.storage.local.set({ [SORT_KEY]: value });
+}
+
+export async function getOpenBehaviorPreference() {
+  const stored = await chrome.storage.local.get(OPEN_BEHAVIOR_KEY);
+  return OPEN_BEHAVIOR_OPTIONS.includes(stored[OPEN_BEHAVIOR_KEY]) ? stored[OPEN_BEHAVIOR_KEY] : "current";
+}
+
+export async function persistOpenBehaviorPreference(value) {
+  if (!OPEN_BEHAVIOR_OPTIONS.includes(value)) return;
+  await chrome.storage.local.set({ [OPEN_BEHAVIOR_KEY]: value });
 }
 
 // session on change listerner only callback if the change is relevant to sessions (i.e. key starts with PREFIX)

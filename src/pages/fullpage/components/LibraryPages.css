@@ -271,6 +271,56 @@
 .settings-control-row label { font-size: 12px; font-weight: 700; }
 .settings-control-row p { margin: 4px 0 0; color: var(--slate-500); font-size: 11px; line-height: 1.4; }
 .settings-control-row select { min-width: 138px; padding: 9px 10px; border: 1px solid var(--slate-200); border-radius: 8px; background: #fff; color: var(--slate-700); font: inherit; font-size: 12px; cursor: pointer; }
+.settings-open-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    flex: 0 0 auto;
+    padding: 4px 0 4px 8px;
+    border: 0;
+    background: transparent;
+    color: var(--slate-700);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.settings-open-switch-track {
+    display: inline-flex;
+    align-items: center;
+    width: 38px;
+    height: 22px;
+    padding: 3px;
+    border-radius: 20px;
+    background: var(--slate-300);
+    transition: background-color .2s ease;
+}
+
+.settings-open-switch-track span {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .25);
+    transform: translateX(0);
+    transition: transform .2s ease;
+}
+
+.settings-open-switch[aria-checked="true"] .settings-open-switch-track {
+    background: var(--primary);
+}
+
+.settings-open-switch[aria-checked="true"] .settings-open-switch-track span {
+    transform: translateX(16px);
+}
+
+.settings-open-switch:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 5px;
+}
+
 .settings-file-input { display: none; }
 
 .settings-stats {
@@ -372,6 +422,16 @@
 :root[data-theme="dark"] .settings-control-row { border-color: #333849; }
 :root[data-theme="dark"] .settings-control-row p { color: #9ca3b6; }
 :root[data-theme="dark"] .settings-control-row select { background: #202431; border-color: #333849; color: #e4e7f0; }
+:root[data-theme="dark"] .settings-open-switch { color: #e4e7f0; }
+:root[data-theme="dark"] .settings-open-switch-track { background: #4b5265; }
+:root[data-theme="dark"] .settings-open-switch[aria-checked="true"] .settings-open-switch-track { background: var(--primary); }
+
+@media (prefers-reduced-motion: reduce) {
+    .settings-open-switch-track,
+    .settings-open-switch-track span {
+        transition: none;
+    }
+}
 
 :root[data-theme="dark"] .library-count,
 :root[data-theme="dark"] .library-card-symbol,

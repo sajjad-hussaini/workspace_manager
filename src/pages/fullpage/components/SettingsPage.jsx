@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Icon } from "./Icons";
 import "./LibraryPages.css";
 
-export default function SettingsPage({ theme, onThemeChange, sortKey, onSortChange, activeCount, archivedCount, tabCount, onExport, onBackup, onImport }) {
+export default function SettingsPage({ theme, onThemeChange, sortKey, onSortChange, openBehavior, onOpenBehaviorChange, activeCount, archivedCount, tabCount, onExport, onBackup, onImport }) {
   const fileInput = useRef(null);
   const [importing, setImporting] = useState(false);
 
@@ -33,6 +33,24 @@ export default function SettingsPage({ theme, onThemeChange, sortKey, onSortChan
             <option value="created-desc">Newest first</option>
             <option value="opened-desc">Recently opened</option>
           </select>
+        </div>
+        <div className="settings-control-row">
+          <div>
+            <label id="settings-open-behavior-label">Open button behavior</label>
+            <p id="settings-open-behavior-description">Choose where links open when you use an Open button.</p>
+          </div>
+          <button
+            type="button"
+            className="settings-open-switch"
+            role="switch"
+            aria-labelledby="settings-open-behavior-label"
+            aria-describedby="settings-open-behavior-description"
+            aria-checked={openBehavior === "new-window"}
+            onClick={() => onOpenBehaviorChange(openBehavior === "new-window" ? "current" : "new-window")}
+          >
+            <span className="settings-open-switch-track" aria-hidden="true"><span /></span>
+            <span>{openBehavior === "new-window" ? "New window" : "Current window"}</span>
+          </button>
         </div>
       </section>
       <section className="settings-panel" aria-labelledby="data-title">

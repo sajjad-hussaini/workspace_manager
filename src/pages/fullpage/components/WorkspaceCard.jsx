@@ -136,6 +136,7 @@ export default function WorkspaceCard({
   onArchiveSession,
   onDeleteSession,
   onToggleTabSelection,
+  onOpenDefault,
   onOpenTab,
   onEditTab,
   onDeleteTab,
@@ -258,7 +259,7 @@ export default function WorkspaceCard({
           <div className="modern-split-btn-container" ref={openMenuRef}>
             <button
               className="modern-split-main-btn"
-              onClick={onOpenAll}
+              onClick={onOpenDefault}
               type="button"
               title="Open all tabs"
             >

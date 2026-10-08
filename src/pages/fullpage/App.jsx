@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { moveWorkspace, moveLink } from "../../lib/dragDrop";
 import { beginPointerDrag } from "../../lib/pointerDrag";
-import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme, getSortPreference, persistSortPreference } from "../../lib/storage";
+import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme, getSortPreference, persistSortPreference, getOpenBehaviorPreference, persistOpenBehaviorPreference } from "../../lib/storage";
 import {
   getCurrentTabs,
   getUniqueTabs,
@@ -50,6 +50,7 @@ export default function App({ popup = false }) {
   const [selectedByWorkspace, setSelectedByWorkspace] = useState(() => new Map());
   const [openMenuId, setOpenMenuId] = useState(null);
   const [theme, setTheme] = useState("light");
+  const [openBehavior, setOpenBehavior] = useState("current");
   const [now, setNow] = useState(Date.now);
   const reminderMinDate = getReminderMinDate(now);
 
@@ -101,6 +102,7 @@ export default function App({ popup = false }) {
     refresh();
     getTheme().then(setTheme);
     getSortPreference().then(setSortKey);
+    getOpenBehaviorPreference().then(setOpenBehavior);
     getCurrentTabs().then(setCurrentTabs);
     const unsubscribe = onSessionsChanged(refresh);
     return unsubscribe;
@@ -340,26 +342,33 @@ export default function App({ popup = false }) {
     await persistSession({ ...session, tabs: updatedTabs, lastOpenedAt: openedAt });
   }
 
-  async function handleOpenAll(session) {
+  async function handleOpenAll(session, newWindow = openBehavior === "new-window") {
+    return openSession(session, newWindow);
+  }
+
+  async function openSession(session, newWindow = openBehavior === "new-window") {
     if (!session.tabs?.length) return showToast("This workspace has no links.");
+    const urls = session.tabs.map((tab) => tab.url).filter(Boolean);
+    if (!urls.length) return showToast("This workspace has no links.");
     await markOpened(session.id, session.tabs.map((_, i) => i));
-    for (const tab of session.tabs) if (tab.url) await chrome.tabs.create({ url: tab.url, active: false });
+    if (newWindow) {
+      if (urls.length) await chrome.windows.create({ url: urls, focused: true });
+    } else {
+      for (const url of urls) await chrome.tabs.create({ url, active: false });
+    }
     await refresh();
   }
 
   async function handleOpenNewWindow(session) {
-    const urls = session.tabs?.map((t) => t.url).filter(Boolean) || [];
-    if (!urls.length) return showToast("This workspace has no links.");
-    await markOpened(session.id, session.tabs.map((_, i) => i));
-    await chrome.windows.create({ url: urls, focused: true });
-    await refresh();
+    return openSession(session, true);
   }
 
-  async function handleOpenTab(session, tabIndex) {
+  async function handleOpenTab(session, tabIndex, newWindow = openBehavior === "new-window") {
     const tab = session.tabs?.[tabIndex];
     if (!tab?.url) return;
     await markOpened(session.id, [tabIndex]);
-    await chrome.tabs.create({ url: tab.url, active: false });
+    if (newWindow) await chrome.windows.create({ url: tab.url, focused: true });
+    else await chrome.tabs.create({ url: tab.url, active: false });
     await refresh();
   }
 
@@ -385,20 +394,17 @@ export default function App({ popup = false }) {
     return (session.tabs || []).map((tab, index) => ({ tab, index })).filter(({ tab, index }) => selected.has(index) && tab.url);
   }
 
-  async function handleOpenSelected(session) {
+  async function handleOpenSelected(session, newWindow = openBehavior === "new-window") {
     const selected = getSelected(session);
     if (!selected.length) return showToast("Select at least one link first.");
     await markOpened(session.id, selected.map(({ index }) => index));
-    for (const { tab } of selected) await chrome.tabs.create({ url: tab.url, active: false });
+    if (newWindow) await chrome.windows.create({ url: selected.map(({ tab }) => tab.url), focused: true });
+    else for (const { tab } of selected) await chrome.tabs.create({ url: tab.url, active: false });
     await refresh();
   }
 
   async function handleOpenSelectedNewWindow(session) {
-    const selected = getSelected(session);
-    if (!selected.length) return showToast("Select at least one link first.");
-    await markOpened(session.id, selected.map(({ index }) => index));
-    await chrome.windows.create({ url: selected.map(({ tab }) => tab.url), focused: true });
-    await refresh();
+    return handleOpenSelected(session, true);
   }
   
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -890,6 +896,16 @@ export default function App({ popup = false }) {
     }
   }
 
+  async function changeOpenBehavior(value) {
+    setOpenBehavior(value);
+    try {
+      await persistOpenBehaviorPreference(value);
+    } catch (error) {
+      console.error("Could not save open behavior preference:", error);
+      showToast("Could not save your open behavior preference.");
+    }
+  }
+
   async function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -959,9 +975,10 @@ export default function App({ popup = false }) {
       onEditTab={(tabIndex) => openLinkEditor(session, tabIndex)}
       onDeleteTab={(tabIndex) => requestDeleteTab(session, tabIndex)}
       onAddLink={() => openAddLink(session)}
-      onOpenAll={() => handleOpenAll(session)}
+      onOpenAll={() => handleOpenAll(session, false)}
+      onOpenDefault={() => openSession(session)}
       onOpenNewWindow={() => handleOpenNewWindow(session)}
-      onOpenSelected={() => handleOpenSelected(session)}
+      onOpenSelected={() => handleOpenSelected(session, false)}
       onOpenSelectedNewWindow={() => handleOpenSelectedNewWindow(session)}
       onDeleteSelected={() => requestDeleteSelected(session)}
       onAddCurrentLinks={() => handleAddCurrentLinks(session)}
@@ -1098,6 +1115,8 @@ export default function App({ popup = false }) {
             onThemeChange={async (next) => { setTheme(next); await persistTheme(next); }}
             sortKey={sortKey}
             onSortChange={changeSortPreference}
+            openBehavior={openBehavior}
+            onOpenBehaviorChange={changeOpenBehavior}
             activeCount={activeSessions.length}
             archivedCount={archivedSessions.length}
             tabCount={sessions.reduce((total, session) => total + (session.tabs?.length || 0), 0)}
