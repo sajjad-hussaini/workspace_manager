@@ -1,4 +1,4 @@
-export default function ConfirmDialog({ title, message, onCancel, onConfirm }) {
+export default function ConfirmDialog({ title, message, confirmLabel = "Delete", onCancel, onConfirm }) {
   return (
     <div className="dialog-backdrop" onClick={onCancel} role="presentation">
       <section
@@ -16,11 +16,11 @@ export default function ConfirmDialog({ title, message, onCancel, onConfirm }) {
           </button>
           <button
             className="btn"
-            style={{ background: "var(--danger)", borderColor: "var(--danger)", color: "#fff", fontWeight: 700 }}
+            style={{ background: confirmLabel === "Delete" ? "var(--danger)" : "var(--primary)", borderColor: confirmLabel === "Delete" ? "var(--danger)" : "var(--primary)", color: "#fff", fontWeight: 700 }}
             onClick={onConfirm}
             type="button"
           >
-            Delete
+            {confirmLabel}
           </button>
         </div>
       </section>

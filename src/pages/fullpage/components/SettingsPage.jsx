@@ -1,10 +1,19 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icons";
 import "./LibraryPages.css";
 
-export default function SettingsPage({ theme, onThemeChange, sortKey, onSortChange, openBehavior, onOpenBehaviorChange, activeCount, archivedCount, tabCount, onExport, onBackup, onImport }) {
+export default function SettingsPage({ theme, onThemeChange, sortKey, onSortChange, openBehavior, onOpenBehaviorChange, tabWarning, onTabWarningChange, autoNameQuickSave, onAutoNameQuickSaveChange, activeCount, archivedCount, tabCount, onExport, onBackup, onImport }) {
   const fileInput = useRef(null);
   const [importing, setImporting] = useState(false);
+  const [limitInput, setLimitInput] = useState(String(tabWarning.limit));
+
+  useEffect(() => setLimitInput(String(tabWarning.limit)), [tabWarning.limit]);
+
+  function changeLimit(value) {
+    setLimitInput(value);
+    const limit = Number(value);
+    if (/^[1-9]\d*$/.test(value) && Number.isSafeInteger(limit)) onTabWarningChange({ ...tabWarning, limit });
+  }
 
   async function importFile(event) {
     const file = event.target.files?.[0];
@@ -50,6 +59,30 @@ export default function SettingsPage({ theme, onThemeChange, sortKey, onSortChan
           >
             <span className="settings-open-switch-track" aria-hidden="true"><span /></span>
             <span>{openBehavior === "new-window" ? "New window" : "Current window"}</span>
+          </button>
+        </div>
+        <div className="settings-control-row">
+          <div>
+            <label id="settings-tab-warning-label">Tab opening warning</label>
+            <p id="settings-tab-warning-description">Ask before opening more saved links than your limit at once.</p>
+          </div>
+          <button type="button" className="settings-open-switch" role="switch" aria-labelledby="settings-tab-warning-label" aria-describedby="settings-tab-warning-description" aria-checked={tabWarning.enabled} onClick={() => onTabWarningChange({ ...tabWarning, enabled: !tabWarning.enabled })}>
+            <span className="settings-open-switch-track" aria-hidden="true"><span /></span>
+            <span>{tabWarning.enabled ? "On" : "Off"}</span>
+          </button>
+        </div>
+        <div className="settings-control-row">
+          <div><label htmlFor="settings-tab-warning-limit">Warn when opening more than</label><p>Default: 20 tabs. The limit applies to each open action.</p></div>
+          <div className="settings-number-control"><input id="settings-tab-warning-limit" type="number" min="1" step="1" inputMode="numeric" value={limitInput} onChange={(event) => changeLimit(event.target.value)} onBlur={() => setLimitInput(String(tabWarning.limit))} aria-label="Tab warning limit" /><span>tabs</span></div>
+        </div>
+        <div className="settings-control-row">
+          <div>
+            <label id="settings-auto-name-label">Auto-name quick saves</label>
+            <p id="settings-auto-name-description">Use Current Browser names when saving current tabs. Turn off to enter a workspace name first.</p>
+          </div>
+          <button type="button" className="settings-open-switch" role="switch" aria-labelledby="settings-auto-name-label" aria-describedby="settings-auto-name-description" aria-checked={autoNameQuickSave} onClick={() => onAutoNameQuickSaveChange(!autoNameQuickSave)}>
+            <span className="settings-open-switch-track" aria-hidden="true"><span /></span>
+            <span>{autoNameQuickSave ? "On" : "Off"}</span>
           </button>
         </div>
       </section>

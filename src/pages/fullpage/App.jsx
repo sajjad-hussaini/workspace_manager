@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { moveWorkspace, moveLink } from "../../lib/dragDrop";
 import { beginPointerDrag } from "../../lib/pointerDrag";
-import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme, getSortPreference, persistSortPreference, getOpenBehaviorPreference, persistOpenBehaviorPreference } from "../../lib/storage";
+import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme, getSortPreference, persistSortPreference, getOpenBehaviorPreference, persistOpenBehaviorPreference, getTabWarningPreference, persistTabWarningPreference, getAutoNameQuickSavePreference, persistAutoNameQuickSavePreference } from "../../lib/storage";
 import {
   getCurrentTabs,
   getUniqueTabs,
@@ -51,6 +51,8 @@ export default function App({ popup = false }) {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [theme, setTheme] = useState("light");
   const [openBehavior, setOpenBehavior] = useState("current");
+  const [tabWarning, setTabWarning] = useState({ enabled: false, limit: 20 });
+  const [autoNameQuickSave, setAutoNameQuickSave] = useState(true);
   const [now, setNow] = useState(Date.now);
   const reminderMinDate = getReminderMinDate(now);
 
@@ -103,6 +105,8 @@ export default function App({ popup = false }) {
     getTheme().then(setTheme);
     getSortPreference().then(setSortKey);
     getOpenBehaviorPreference().then(setOpenBehavior);
+    getTabWarningPreference().then(setTabWarning);
+    getAutoNameQuickSavePreference().then(setAutoNameQuickSave);
     getCurrentTabs().then(setCurrentTabs);
     const unsubscribe = onSessionsChanged(refresh);
     return unsubscribe;
@@ -227,18 +231,18 @@ export default function App({ popup = false }) {
   }
 
   async function handleSave() {
-    if (!validateReminder(reminderAt)) return;
+    if (!validateReminder(reminderAt)) return false;
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       showToast("Enter a workspace name first.");
-      return;
+      return false;
     }
     setSaving(true);
     try {
       const tabs = await getCurrentTabs();
       if (!tabs.length) {
         showToast("No valid tabs were found in this window.");
-        return;
+        return false;
       }
       const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
       const parsedTags = parseTags(tags);
@@ -284,9 +288,11 @@ export default function App({ popup = false }) {
       setTags("");
       setReminderAt("");
       await refresh();
+      return true;
     } catch (error) {
       console.error(error);
       showToast(error.message || "The workspace could not be saved.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -331,6 +337,24 @@ export default function App({ popup = false }) {
 
   // ── Open actions ──────────────────────────────────────────────────────────
 
+  function confirmOpeningTabs(count) {
+    if (!tabWarning.enabled || count <= tabWarning.limit) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      setConfirmState({
+        title: "Open many tabs?",
+        message: `This will open ${count} tabs, above your warning limit of ${tabWarning.limit}. Continue?`,
+        confirmLabel: "Open tabs",
+        onCancel: () => { setConfirmState(null); resolve(false); },
+        onConfirm: () => { setConfirmState(null); resolve(true); }
+      });
+    });
+  }
+
+  function saveCurrentTabs() {
+    if (autoNameQuickSave) handleQuickSave();
+    else openNewWorkspaceModal();
+  }
+
   async function markOpened(sessionId, tabIndexes) {
     const session = sessions.find((s) => s.id === sessionId);
     if (!session) return;
@@ -350,6 +374,7 @@ export default function App({ popup = false }) {
     if (!session.tabs?.length) return showToast("This workspace has no links.");
     const urls = session.tabs.map((tab) => tab.url).filter(Boolean);
     if (!urls.length) return showToast("This workspace has no links.");
+    if (!await confirmOpeningTabs(urls.length)) return;
     await markOpened(session.id, session.tabs.map((_, i) => i));
     if (newWindow) {
       if (urls.length) await chrome.windows.create({ url: urls, focused: true });
@@ -366,6 +391,7 @@ export default function App({ popup = false }) {
   async function handleOpenTab(session, tabIndex, newWindow = openBehavior === "new-window") {
     const tab = session.tabs?.[tabIndex];
     if (!tab?.url) return;
+    if (!await confirmOpeningTabs(1)) return;
     await markOpened(session.id, [tabIndex]);
     if (newWindow) await chrome.windows.create({ url: tab.url, focused: true });
     else await chrome.tabs.create({ url: tab.url, active: false });
@@ -397,6 +423,7 @@ export default function App({ popup = false }) {
   async function handleOpenSelected(session, newWindow = openBehavior === "new-window") {
     const selected = getSelected(session);
     if (!selected.length) return showToast("Select at least one link first.");
+    if (!await confirmOpeningTabs(selected.length)) return;
     await markOpened(session.id, selected.map(({ index }) => index));
     if (newWindow) await chrome.windows.create({ url: selected.map(({ tab }) => tab.url), focused: true });
     else for (const { tab } of selected) await chrome.tabs.create({ url: tab.url, active: false });
@@ -604,8 +631,7 @@ export default function App({ popup = false }) {
       return;
     }
 
-    await handleSave();
-    closeWorkspaceModal();
+    if (await handleSave()) closeWorkspaceModal();
   }
 
   function renameWorkspace(session) {
@@ -906,6 +932,26 @@ export default function App({ popup = false }) {
     }
   }
 
+  async function changeTabWarning(value) {
+    setTabWarning(value);
+    try {
+      await persistTabWarningPreference(value);
+    } catch (error) {
+      console.error("Could not save tab warning preference:", error);
+      showToast("Could not save your tab warning preference.");
+    }
+  }
+
+  async function changeAutoNameQuickSave(value) {
+    setAutoNameQuickSave(value);
+    try {
+      await persistAutoNameQuickSavePreference(value);
+    } catch (error) {
+      console.error("Could not save quick-save naming preference:", error);
+      showToast("Could not save your quick-save naming preference.");
+    }
+  }
+
   async function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -1117,6 +1163,10 @@ export default function App({ popup = false }) {
             onSortChange={changeSortPreference}
             openBehavior={openBehavior}
             onOpenBehaviorChange={changeOpenBehavior}
+            tabWarning={tabWarning}
+            onTabWarningChange={changeTabWarning}
+            autoNameQuickSave={autoNameQuickSave}
+            onAutoNameQuickSaveChange={changeAutoNameQuickSave}
             activeCount={activeSessions.length}
             archivedCount={archivedSessions.length}
             tabCount={sessions.reduce((total, session) => total + (session.tabs?.length || 0), 0)}
@@ -1195,7 +1245,7 @@ export default function App({ popup = false }) {
 
               <button
                 className="modern-browser-save-btn"
-                onClick={handleQuickSave}
+                onClick={saveCurrentTabs}
                 disabled={saving}
                 type="button"
               >
@@ -1373,7 +1423,8 @@ export default function App({ popup = false }) {
         <ConfirmDialog
           title={confirmState.title}
           message={confirmState.message}
-          onCancel={() => setConfirmState(null)}
+          confirmLabel={confirmState.confirmLabel}
+          onCancel={confirmState.onCancel || (() => setConfirmState(null))}
           onConfirm={confirmState.onConfirm}
         />
       )}

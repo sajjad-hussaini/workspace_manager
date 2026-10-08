@@ -271,6 +271,9 @@
 .settings-control-row label { font-size: 12px; font-weight: 700; }
 .settings-control-row p { margin: 4px 0 0; color: var(--slate-500); font-size: 11px; line-height: 1.4; }
 .settings-control-row select { min-width: 138px; padding: 9px 10px; border: 1px solid var(--slate-200); border-radius: 8px; background: #fff; color: var(--slate-700); font: inherit; font-size: 12px; cursor: pointer; }
+.settings-number-control { display: flex; align-items: center; gap: 8px; color: var(--slate-500); font-size: 12px; }
+.settings-number-control input { width: 76px; padding: 9px 10px; border: 1px solid var(--slate-200); border-radius: 8px; background: #fff; color: var(--slate-700); font: inherit; font-size: 12px; }
+.settings-number-control input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .settings-open-switch {
     display: inline-flex;
     align-items: center;
@@ -422,6 +425,7 @@
 :root[data-theme="dark"] .settings-control-row { border-color: #333849; }
 :root[data-theme="dark"] .settings-control-row p { color: #9ca3b6; }
 :root[data-theme="dark"] .settings-control-row select { background: #202431; border-color: #333849; color: #e4e7f0; }
+:root[data-theme="dark"] .settings-number-control input { background: #202431; border-color: #333849; color: #e4e7f0; }
 :root[data-theme="dark"] .settings-open-switch { color: #e4e7f0; }
 :root[data-theme="dark"] .settings-open-switch-track { background: #4b5265; }
 :root[data-theme="dark"] .settings-open-switch[aria-checked="true"] .settings-open-switch-track { background: var(--primary); }
