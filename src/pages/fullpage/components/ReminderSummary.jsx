@@ -21,7 +21,7 @@ export default function ReminderSummary({ reminders, now, onOpen }) {
           <strong>{reminder.title}</strong>
           <span className={reminder.dueAt <= now ? "reminder-overdue-text" : ""}>{reminder.dueAt <= now ? "Overdue · " : ""}{formatReminderDate(reminder.reminderAt, now)}</span>
         </div>)}
-        <span className="reminder-summary-hint">View all reminders <Icon name="arrowRight" /></span>
+        <span onClick={onOpen} className="reminder-summary-hint">View all reminders <Icon name="arrowRight" /></span>
       </div>}
     </div>
   );

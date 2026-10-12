@@ -1,7 +1,10 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { moveWorkspace, moveLink } from "../../lib/dragDrop";
 import { beginPointerDrag } from "../../lib/pointerDrag";
-import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged, getTheme, persistTheme, getSortPreference, persistSortPreference, getOpenBehaviorPreference, persistOpenBehaviorPreference, getTabWarningPreference, persistTabWarningPreference, getAutoNameQuickSavePreference, persistAutoNameQuickSavePreference } from "../../lib/storage";
+import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged,
+  getTheme, persistTheme, getSortPreference, persistSortPreference, getOpenBehaviorPreference, 
+  persistOpenBehaviorPreference, getTabWarningPreference, persistTabWarningPreference, 
+  getAutoNameQuickSavePreference, persistAutoNameQuickSavePreference } from "../../lib/storage";
 import {
   getCurrentTabs,
   getUniqueTabs,
@@ -23,6 +26,7 @@ import ReminderSummary from "./components/ReminderSummary";
 import RemindersPage from "./components/RemindersPage";
 import ArchivedPage from "./components/ArchivedPage";
 import SettingsPage from "./components/SettingsPage";
+// import RecentsHistoryPage from "./components/RecentsHistoryPage";
 import { collectReminders, toLocalDateTime, getReminderMinDate, isValidReminderDate } from "../../lib/reminders";
 import { Icon, LinkFavicon } from "./components/Icons";
 
