@@ -112,6 +112,7 @@ function LinkOptions({ menuId, label, openMenuId, setOpenMenuId, onDelete }) {
 export default function WorkspaceCard({
   session,
   popup = false,
+  showSavedTabCount = true,
   searchQuery = "",
   onTagClick,
   index = 0,
@@ -236,10 +237,10 @@ export default function WorkspaceCard({
         }} role="button" tabIndex={0}>
           <h3 className="modern-ws-title"><SearchHighlight text={session.title} query={searchQuery} /></h3>
           <div className="modern-ws-meta">
-            <span>{tabs.length} tabs</span>
+            {showSavedTabCount && <span>{tabs.length} tabs</span>}
             {updatedDateText && (
               <>
-                <span className="modern-meta-dot">·</span>
+                {showSavedTabCount && <span className="modern-meta-dot">·</span>}
                 <span>{updatedDateText}</span>
               </>
             )}

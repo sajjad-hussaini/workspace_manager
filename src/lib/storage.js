@@ -6,6 +6,7 @@ const SORT_KEY = "tabWorkspacesSort";
 const OPEN_BEHAVIOR_KEY = "tabWorkspacesOpenBehavior";
 const TAB_WARNING_KEY = "tabWorkspacesTabWarning";
 const AUTO_NAME_QUICK_SAVE_KEY = "tabWorkspacesAutoNameQuickSave";
+const SHOW_SAVED_TAB_COUNT_KEY = "tabWorkspacesShowSavedTabCount";
 const SORT_OPTIONS = ["manual", "name-asc", "created-desc", "opened-desc"];
 const OPEN_BEHAVIOR_OPTIONS = ["current", "new-window"];
 const SYNC_ITEM_LIMIT_BYTES = 7500; // Chrome 8192 hard limit below which sync storage is guaranteed to work, but we leave some buffer for overhead
@@ -56,7 +57,7 @@ export async function deleteSessionStorage(sessionId) {
 
 export async function getTheme() {
   const stored = await chrome.storage.local.get(THEME_KEY);
-  return stored[THEME_KEY] === "light" ? "light" : "dark";
+  return stored[THEME_KEY] === "dark" ? "dark" : "light";
 }
 
 export async function persistTheme(theme) {
@@ -103,6 +104,15 @@ export async function getAutoNameQuickSavePreference() {
 
 export async function persistAutoNameQuickSavePreference(enabled) {
   await chrome.storage.local.set({ [AUTO_NAME_QUICK_SAVE_KEY]: enabled === true });
+}
+
+export async function getShowSavedTabCountPreference() {
+  const stored = await chrome.storage.local.get(SHOW_SAVED_TAB_COUNT_KEY);
+  return stored[SHOW_SAVED_TAB_COUNT_KEY] !== false;
+}
+
+export async function persistShowSavedTabCountPreference(enabled) {
+  await chrome.storage.local.set({ [SHOW_SAVED_TAB_COUNT_KEY]: enabled === true });
 }
 
 // session on change listerner only callback if the change is relevant to sessions (i.e. key starts with PREFIX)

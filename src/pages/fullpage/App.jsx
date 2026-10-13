@@ -4,7 +4,8 @@ import { beginPointerDrag } from "../../lib/pointerDrag";
 import { getSessions, persistSession, deleteSessionStorage, onSessionsChanged,
   getTheme, persistTheme, getSortPreference, persistSortPreference, getOpenBehaviorPreference, 
   persistOpenBehaviorPreference, getTabWarningPreference, persistTabWarningPreference, 
-  getAutoNameQuickSavePreference, persistAutoNameQuickSavePreference } from "../../lib/storage";
+  getAutoNameQuickSavePreference, persistAutoNameQuickSavePreference,
+  getShowSavedTabCountPreference, persistShowSavedTabCountPreference } from "../../lib/storage";
 import {
   getCurrentTabs,
   getUniqueTabs,
@@ -57,6 +58,7 @@ export default function App({ popup = false }) {
   const [openBehavior, setOpenBehavior] = useState("current");
   const [tabWarning, setTabWarning] = useState({ enabled: false, limit: 20 });
   const [autoNameQuickSave, setAutoNameQuickSave] = useState(true);
+  const [showSavedTabCount, setShowSavedTabCount] = useState(true);
   const [now, setNow] = useState(Date.now);
   const reminderMinDate = getReminderMinDate(now);
 
@@ -111,6 +113,7 @@ export default function App({ popup = false }) {
     getOpenBehaviorPreference().then(setOpenBehavior);
     getTabWarningPreference().then(setTabWarning);
     getAutoNameQuickSavePreference().then(setAutoNameQuickSave);
+    getShowSavedTabCountPreference().then(setShowSavedTabCount);
     getCurrentTabs().then(setCurrentTabs);
     const unsubscribe = onSessionsChanged(refresh);
     return unsubscribe;
@@ -961,6 +964,16 @@ export default function App({ popup = false }) {
     }
   }
 
+  async function changeShowSavedTabCount(value) {
+    setShowSavedTabCount(value);
+    try {
+      await persistShowSavedTabCountPreference(value);
+    } catch (error) {
+      console.error("Could not save tab count preference:", error);
+      showToast("Could not save your tab count preference.");
+    }
+  }
+
   async function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -999,6 +1012,7 @@ export default function App({ popup = false }) {
       openMenuId={openMenuId}
       setOpenMenuId={setOpenMenuId}
       pointerDrag={popup}
+      showSavedTabCount={showSavedTabCount}
       onPointerDragStart={(event, tabIndex) => startPointerDrag(event, tabIndex == null
         ? { type: "workspace", sessionId: session.id }
         : { type: "link", sessionId: session.id, index: tabIndex })}
@@ -1054,12 +1068,12 @@ export default function App({ popup = false }) {
   );
 
   return (
-    <div className={`modern-app-shell${popup ? " modern-popup-shell" : ""}`}>
+    <div className={`modern-app-shell${popup ? " modern-popup-shell" : ""}${activeNav === "settings" ? " is-settings-view" : ""}`}>
       {/* ── Left Sidebar ── */}
       <aside className="modern-sidebar">
         <div className="modern-brand">
           <span className="modern-brand-logo">W</span>
-          <span className="modern-brand-text">TabMorrow</span>
+          <span className="modern-brand-text">{activeNav === "settings" && !popup ? "Workspace Manager" : "TabMorrow"}</span>
           {popup && (
             <div className="modern-popup-header-actions">
               <button className="modern-theme-btn" type="button" onClick={toggleTheme} aria-label="Toggle theme" title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
@@ -1166,6 +1180,7 @@ export default function App({ popup = false }) {
           {activeNav === "settings" ? <SettingsPage
             theme={theme}
             onThemeChange={async (next) => { setTheme(next); await persistTheme(next); }}
+            onToggleTheme={toggleTheme}
             sortKey={sortKey}
             onSortChange={changeSortPreference}
             openBehavior={openBehavior}
@@ -1174,6 +1189,8 @@ export default function App({ popup = false }) {
             onTabWarningChange={changeTabWarning}
             autoNameQuickSave={autoNameQuickSave}
             onAutoNameQuickSaveChange={changeAutoNameQuickSave}
+            showSavedTabCount={showSavedTabCount}
+            onShowSavedTabCountChange={changeShowSavedTabCount}
             activeCount={activeSessions.length}
             archivedCount={archivedSessions.length}
             tabCount={sessions.reduce((total, session) => total + (session.tabs?.length || 0), 0)}
