@@ -16,6 +16,7 @@ import {
   workspaceMatchesSearch
 } from "../../lib/utils";
 import WorkspaceCard from "./components/WorkspaceCard";
+import WorkspaceDetail from "./components/WorkspaceDetail";
 import TagInput from "./components/TagInput";
 import { normalizeTag, parseTags } from "../../lib/tags";
 import { parseWorkspaceBackup } from "../../lib/backup";
@@ -202,6 +203,8 @@ export default function App({ popup = false }) {
   }, [activeSessions, activeSearch, sortKey]);
 
   const [activeNav, setActiveNav] = useState("all");
+  const [detailWorkspaceId, setDetailWorkspaceId] = useState(null);
+  const detailWorkspace = activeSessions.find((session) => session.id === detailWorkspaceId);
   const [isEmptyWorkspace, setIsEmptyWorkspace] = useState(false);
 
   // ── Metrics ───────────────────────────────────────────────────────────────
@@ -992,6 +995,7 @@ export default function App({ popup = false }) {
     if (!normalized) return;
     const query = `#${normalized}`;
     setActiveNav("all");
+    setDetailWorkspaceId(null);
     setSearchInput(query);
     setActiveSearch(query.toLowerCase());
     setExpandedIds(new Set());
@@ -1027,6 +1031,7 @@ export default function App({ popup = false }) {
       onDragEnd={endDrag}
       onKeyboardMove={(event, tabIndex) => keyboardMove(event, session, tabIndex)}
       onToggleExpanded={() => toggleExpanded(session.id)}
+      onShowDetails={!popup ? () => { setDetailWorkspaceId(session.id); setSearchInput(""); setActiveSearch(""); window.scrollTo(0, 0); } : undefined}
       onEditSession={() => renameWorkspace(session)}
       onDuplicateSession={() => duplicateWorkspace(session)}
       onExportSession={() => {
@@ -1061,7 +1066,7 @@ export default function App({ popup = false }) {
         aria-label={activeNav === "reminders" ? "Search reminders" : "Search workspaces and tabs"}
         placeholder={activeNav === "reminders" ? "Search reminders..." : "Search workspaces and tabs..."}
         value={searchInput}
-        onChange={(event) => setSearchInput(event.target.value)}
+        onChange={(event) => { if (detailWorkspaceId) setDetailWorkspaceId(null); setSearchInput(event.target.value); }}
       />
       {searchInput && <button className="search-clear" type="button" aria-label="Clear search" onClick={() => { setSearchInput(""); setActiveSearch(""); }}><Icon name="close" /></button>}
     </div>
@@ -1089,7 +1094,7 @@ export default function App({ popup = false }) {
         {!popup && <nav className="modern-nav" aria-label="Workspace navigation">
           <button
             className={`modern-nav-item ${activeNav === "all" ? "is-active" : ""}`}
-            onClick={() => setActiveNav("all")}
+            onClick={() => { setActiveNav("all"); setDetailWorkspaceId(null); }}
             type="button"
           >
             <span className="modern-nav-icon"><Icon name="allspace" /></span>
@@ -1107,7 +1112,7 @@ export default function App({ popup = false }) {
 
           <button
             className={`modern-nav-item ${activeNav === "archived" ? "is-active" : ""}`}
-            onClick={() => { setActiveNav("archived"); setSearchInput(""); setActiveSearch(""); }}
+            onClick={() => { setActiveNav("archived"); setDetailWorkspaceId(null); setSearchInput(""); setActiveSearch(""); }}
             type="button"
           >
             <span className="modern-nav-icon"><Icon name="archive" /></span>
@@ -1116,14 +1121,14 @@ export default function App({ popup = false }) {
 
           <div className="modern-nav-divider" />
 
-          <button className={`modern-nav-item ${activeNav === "reminders" ? "is-active" : ""}`} onClick={() => { setActiveNav("reminders"); setSearchInput(""); setActiveSearch(""); }} type="button">
+          <button className={`modern-nav-item ${activeNav === "reminders" ? "is-active" : ""}`} onClick={() => { setActiveNav("reminders"); setDetailWorkspaceId(null); setSearchInput(""); setActiveSearch(""); }} type="button">
             <span className="modern-nav-icon"><Icon name="reminderbell" /></span>
             <span className="modern-nav-text">Reminders</span>
           </button>
 
           <button
             className={`modern-nav-item ${activeNav === "settings" ? "is-active" : ""}`}
-            onClick={() => { setActiveNav("settings"); setSearchInput(""); setActiveSearch(""); }}
+            onClick={() => { setActiveNav("settings"); setDetailWorkspaceId(null); setSearchInput(""); setActiveSearch(""); }}
             type="button"
           >
             <span className="modern-nav-icon"><Icon name="settings" /></span>
@@ -1176,7 +1181,7 @@ export default function App({ popup = false }) {
           </div>
         </header>}
 
-        <main className="modern-content">
+        <main className={`modern-content${detailWorkspace ? " is-workspace-detail" : ""}`}>
           {activeNav === "settings" ? <SettingsPage
             theme={theme}
             onThemeChange={async (next) => { setTheme(next); await persistTheme(next); }}
@@ -1217,6 +1222,41 @@ export default function App({ popup = false }) {
             onSnooze={(reminder) => updateReminder(reminder, new Date(Date.now() + 60 * 60 * 1000).toISOString())}
             onRemove={(reminder) => updateReminder(reminder, "")}
             onEdit={(reminder) => reminder.tabIndex === null ? renameWorkspace(reminder.session) : openLinkEditor(reminder.session, reminder.tabIndex)}
+          /> : !popup && detailWorkspace ? <WorkspaceDetail
+            key={detailWorkspace.id}
+            session={detailWorkspace}
+            selectedIndexes={selectedByWorkspace.get(detailWorkspace.id) || new Set()}
+            openMenuId={openMenuId}
+            setOpenMenuId={setOpenMenuId}
+            openBehavior={openBehavior}
+            onBack={() => setDetailWorkspaceId(null)}
+            onOpenAll={() => openSession(detailWorkspace)}
+            onOpenAllCurrent={() => handleOpenAll(detailWorkspace, false)}
+            onOpenAllNewWindow={() => handleOpenNewWindow(detailWorkspace)}
+            onAddCurrentLinks={() => handleAddCurrentLinks(detailWorkspace)}
+            onAddLink={() => openAddLink(detailWorkspace)}
+            onEditSession={() => renameWorkspace(detailWorkspace)}
+            onDuplicateSession={() => duplicateWorkspace(detailWorkspace)}
+            onExportSession={() => { exportWorkspacesToCsv([detailWorkspace]); showToast("Workspace exported as CSV."); }}
+            onArchiveSession={() => { setDetailWorkspaceId(null); archiveSession(detailWorkspace); }}
+            onDeleteSession={() => requestDeleteSession(detailWorkspace)}
+            onToggleTabSelection={(index, checked) => toggleTabSelection(detailWorkspace.id, index, checked)}
+            onClearSelection={() => setSelectedByWorkspace((previous) => { const next = new Map(previous); next.delete(detailWorkspace.id); return next; })}
+            onOpenTab={(index) => handleOpenTab(detailWorkspace, index)}
+            onEditTab={(index) => openLinkEditor(detailWorkspace, index)}
+            onDeleteTab={(index) => requestDeleteTab(detailWorkspace, index)}
+            onOpenSelected={() => handleOpenSelected(detailWorkspace, false)}
+            onOpenSelectedNewWindow={() => handleOpenSelectedNewWindow(detailWorkspace)}
+            onDeleteSelected={() => requestDeleteSelected(detailWorkspace)}
+            onReorder={async (from, to) => {
+              if (from === to) return;
+              const tabs = [...detailWorkspace.tabs];
+              tabs.splice(to, 0, tabs.splice(from, 1)[0]);
+              await persistSession({ ...detailWorkspace, tabs });
+              setSelectedByWorkspace((previous) => { const next = new Map(previous); next.delete(detailWorkspace.id); return next; });
+              await refresh();
+            }}
+            getFaviconUrl={getFaviconUrl}
           /> : !popup && activeSearch ? <SearchResults
             key={activeSearch}
             query={activeSearch}

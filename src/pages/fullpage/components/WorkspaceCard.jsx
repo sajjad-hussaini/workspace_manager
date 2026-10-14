@@ -131,6 +131,7 @@ export default function WorkspaceCard({
   onDragEnd,
   onKeyboardMove,
   onToggleExpanded,
+  onShowDetails,
   onEditSession,
   onDuplicateSession,
   onExportSession,
@@ -261,51 +262,53 @@ export default function WorkspaceCard({
         {/* Right actions: Split Open Button, Chevron Toggle, More ⋮ Button */}
         <div className="modern-ws-actions">
           {/* Split Open Button */}
-          <div className="modern-split-btn-container" ref={openMenuRef}>
-            <button
-              className="modern-split-main-btn"
-              onClick={onOpenDefault}
-              type="button"
-              title="Open all tabs"
-            >
-              Open
-            </button>
-            <button
-              className={`modern-split-arrow-btn ${openDropdownActive ? "is-active" : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpenDropdownActive((prev) => !prev);
-              }}
-              type="button"
-              aria-label="More open options"
-            >
-              <Icon name="chevron-down" />
-            </button>
+          <div className="modern-open-action">
+            {onShowDetails && <button className="modern-workspace-detail-link" type="button" onClick={onShowDetails}>Workspace detail</button>}
+            <div className="modern-split-btn-container" ref={openMenuRef}>
+              <button
+                className="modern-split-main-btn"
+                onClick={onOpenDefault}
+                type="button"
+                title="Open all tabs"
+              >
+                Open
+              </button>
+              <button
+                className={`modern-split-arrow-btn ${openDropdownActive ? "is-active" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenDropdownActive((prev) => !prev);
+                }}
+                type="button"
+                aria-label="More open options"
+              >
+                <Icon name="chevron-down" />
+              </button>
 
-            {openDropdownActive && (
-              <div className="modern-split-dropdown" role="menu">
-                <button
-                  onClick={() => {
-                    setOpenDropdownActive(false);
-                    onOpenAll();
-                  }}
-                  type="button"
-                >
-                  <Icon name="external" /> Open in current window
-                </button>
-                <button
-                  onClick={() => {
-                    setOpenDropdownActive(false);
-                    onOpenNewWindow();
-                  }}
-                  type="button"
-                >
-                  <Icon name="window" /> Open in new window
-                </button>
-              </div>
-            )}
+              {openDropdownActive && (
+                <div className="modern-split-dropdown" role="menu">
+                  <button
+                    onClick={() => {
+                      setOpenDropdownActive(false);
+                      onOpenAll();
+                    }}
+                    type="button"
+                  >
+                    <Icon name="external" /> Open in current window
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOpenDropdownActive(false);
+                      onOpenNewWindow();
+                    }}
+                    type="button"
+                  >
+                    <Icon name="window" /> Open in new window
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-
           {/* Expand / Collapse Chevron */}
           <button
             className="modern-icon-toggle-btn"
