@@ -35,6 +35,9 @@ export function Icon({ name }) {
     "chevron-down": <><polyline points="6 9 12 15 18 9" /></>,
     "chevron-up": <><polyline points="18 15 12 9 6 15" /></>,
     arrowRight: <><path d="M5 12h14M13 6l6 6-6 6" /></>,
+    arrowLeft: <><path d="M19 12H5m6 6-6-6 6-6" /></>,
+    sort: <><path d="M8 4v16m0-16L5 7m3-3 3 3M16 20V4m0 16-3-3m3 3 3-3" /></>,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></>,
     reminderbell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>,
   };
 

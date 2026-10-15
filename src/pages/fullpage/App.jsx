@@ -28,6 +28,7 @@ import ReminderSummary from "./components/ReminderSummary";
 import RemindersPage from "./components/RemindersPage";
 import ArchivedPage from "./components/ArchivedPage";
 import SettingsPage from "./components/SettingsPage";
+import PopupSettings from "../popup/PopupSettings";
 // import RecentsHistoryPage from "./components/RecentsHistoryPage";
 import { collectReminders, toLocalDateTime, getReminderMinDate, isValidReminderDate } from "../../lib/reminders";
 import { Icon, LinkFavicon } from "./components/Icons";
@@ -202,7 +203,7 @@ export default function App({ popup = false }) {
     return sortSessions(filtered, sortKey);
   }, [activeSessions, activeSearch, sortKey]);
 
-  const [activeNav, setActiveNav] = useState("all");
+  const [activeNav, setActiveNav] = useState(() => !popup && new URLSearchParams(window.location.search).get("view") === "settings" ? "settings" : "all");
   const [detailWorkspaceId, setDetailWorkspaceId] = useState(null);
   const detailWorkspace = activeSessions.find((session) => session.id === detailWorkspaceId);
   const [isEmptyWorkspace, setIsEmptyWorkspace] = useState(false);
@@ -985,8 +986,9 @@ export default function App({ popup = false }) {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  async function openFullManager() {
-    await chrome.tabs.create({ url: chrome.runtime.getURL("src/pages/fullpage/index.html") });
+  async function openFullManager(view = "all") {
+    const url = chrome.runtime.getURL("src/pages/fullpage/index.html");
+    await chrome.tabs.create({ url: view === "settings" ? `${url}?view=settings` : url });
     window.close();
   }
 
@@ -1075,16 +1077,16 @@ export default function App({ popup = false }) {
   return (
     <div className={`modern-app-shell${popup ? " modern-popup-shell" : ""}${activeNav === "settings" ? " is-settings-view" : ""}`}>
       {/* ── Left Sidebar ── */}
-      <aside className="modern-sidebar">
+      {!(popup && activeNav === "settings") && <aside className="modern-sidebar">
         <div className="modern-brand">
           <span className="modern-brand-logo">W</span>
           <span className="modern-brand-text">{activeNav === "settings" && !popup ? "Workspace Manager" : "TabMorrow"}</span>
           {popup && (
             <div className="modern-popup-header-actions">
-              <button className="modern-theme-btn" type="button" onClick={toggleTheme} aria-label="Toggle theme" title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+              <button className="modern-theme-btn" type="button" onClick={() => setActiveNav("settings")} aria-label="Open settings" title="Settings">
                 <Icon name="settings" />
               </button>
-              <button className="modern-theme-btn" type="button" onClick={openFullManager} aria-label="Open full view" title="Open full view">
+              <button className="modern-theme-btn" type="button" onClick={() => openFullManager()} aria-label="Open full view" title="Open full view">
                 <Icon name="external" />
               </button>
             </div>
@@ -1152,7 +1154,7 @@ export default function App({ popup = false }) {
             <Icon name="arrowRight" />
           </button> */}
         </div>}
-      </aside>
+      </aside>}
 
       {/* ── Main Page Content ── */}
       <div className="modern-main-container">
@@ -1182,7 +1184,21 @@ export default function App({ popup = false }) {
         </header>}
 
         <main className={`modern-content${detailWorkspace ? " is-workspace-detail" : ""}`}>
-          {activeNav === "settings" ? <SettingsPage
+          {popup && activeNav === "settings" ? <PopupSettings
+            theme={theme}
+            onThemeChange={async (next) => { setTheme(next); await persistTheme(next); }}
+            sortKey={sortKey}
+            onSortChange={changeSortPreference}
+            openBehavior={openBehavior}
+            onOpenBehaviorChange={changeOpenBehavior}
+            tabWarning={tabWarning}
+            onTabWarningChange={changeTabWarning}
+            onExport={handleExportCsv}
+            onBackup={handleExportJson}
+            onImport={handleImportJson}
+            onAdvancedSettings={() => openFullManager("settings")}
+            onBack={() => setActiveNav("all")}
+          /> : activeNav === "settings" ? <SettingsPage
             theme={theme}
             onThemeChange={async (next) => { setTheme(next); await persistTheme(next); }}
             onToggleTheme={toggleTheme}
