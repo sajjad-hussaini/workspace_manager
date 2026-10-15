@@ -3,4 +3,12 @@ dist
 dist_chrome
 .DS_Store
 *.local
-public
+public/*
+!public/icons/
+public/icons/*
+!public/icons/tabm1.png
+!public/icons/tabm3.png
+!public/icons/tabm-icon-16.png
+!public/icons/tabm-icon-32.png
+!public/icons/tabm-icon-48.png
+!public/icons/tabm-icon-128.png

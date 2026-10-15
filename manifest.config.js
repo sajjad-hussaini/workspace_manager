@@ -9,16 +9,20 @@ export default defineManifest({
   permissions: ["tabs", "storage", "windows", "favicon"],
   action: {
     default_title: "TabMorrow",
-    default_popup: "src/pages/popup/index.html"
+    default_popup: "src/pages/popup/index.html",
+    default_icon: {
+      16: "public/icons/tabm-icon-16.png",
+      32: "public/icons/tabm-icon-32.png"
+    }
   },
   background: {
     service_worker: "src/background/index.js",
     type: "module"
   },
   icons: {
-    16: "public/icons/icon16.jpeg",
-    48: "public/icons/icon48.jpeg",
-    128: "public/icons/icon128.jpeg"
+    16: "public/icons/tabm-icon-16.png",
+    48: "public/icons/tabm-icon-48.png",
+    128: "public/icons/tabm-icon-128.png"
   },
   web_accessible_resources: [
     {

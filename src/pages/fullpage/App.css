@@ -325,32 +325,11 @@
   padding: 0 4px 24px;
 }
 
-.modern-brand-logo {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  background: #111827;
-  color: #ffffff;
-  border-radius: 6px;
-  font-weight: 800;
-  font-size: 13px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-:root[data-theme="dark"] .modern-brand-logo {
-  background: #7c3aed;
-}
-
-.modern-brand-text {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--slate-900);
-}
-
-:root[data-theme="dark"] .modern-brand-text {
-  color: #ffffff;
+.modern-brand-image {
+  display: block;
+  width: 165px;
+  max-width: 100%;
+  height: auto;
 }
 
 .modern-nav {

@@ -1079,8 +1079,7 @@ export default function App({ popup = false }) {
       {/* ── Left Sidebar ── */}
       {!(popup && activeNav === "settings") && <aside className="modern-sidebar">
         <div className="modern-brand">
-          <span className="modern-brand-logo">W</span>
-          <span className="modern-brand-text">{activeNav === "settings" && !popup ? "Workspace Manager" : "TabMorrow"}</span>
+          <img className="modern-brand-image" src={theme === "dark" ? "/icons/tabm3.png" : "/icons/tabm1.png"} alt="TabMorrow" />
           {popup && (
             <div className="modern-popup-header-actions">
               <button className="modern-theme-btn" type="button" onClick={() => setActiveNav("settings")} aria-label="Open settings" title="Settings">
