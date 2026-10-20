@@ -11,8 +11,10 @@ export default defineManifest({
     default_title: "TabMorrow",
     default_popup: "src/pages/popup/index.html",
     default_icon: {
-      16: "public/icons/tabm-icon-16.png",
-      32: "public/icons/tabm-icon-32.png"
+      16: "public/icons/tabicon-16.png",
+      32: "public/icons/tabicon-32.png",
+      48: "public/icons/tabicon-48.png",
+      128: "public/icons/tabicon-128.png"
     }
   },
   background: {
@@ -20,9 +22,10 @@ export default defineManifest({
     type: "module"
   },
   icons: {
-    16: "public/icons/tabm-icon-16.png",
-    48: "public/icons/tabm-icon-48.png",
-    128: "public/icons/tabm-icon-128.png"
+    16: "public/icons/tabicon-16.png",
+    32: "public/icons/tabicon-32.png",
+    48: "public/icons/tabicon-48.png",
+    128: "public/icons/tabicon-128.png"
   },
   web_accessible_resources: [
     {
