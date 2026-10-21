@@ -1116,8 +1116,31 @@ export default function App({ popup = false }) {
       {/* ── Left Sidebar ── */}
       {!(popup && activeNav === "settings") && <aside className="modern-sidebar">
         <div className="modern-brand">
-          <img className="modern-brand-image" src="/icons/tabicon-128.png" width="32" height="32" alt="" />
-          <span className="modern-brand-name">TabMorrow</span>
+          <svg className="modern-brand-filters" width="0" height="0" aria-hidden="true" focusable="false">
+            <defs>
+              <filter id="dashboard-logo-dark" colorInterpolationFilters="sRGB">
+                <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1 0 0 0 0" result="logo-red" />
+                <feComponentTransfer in="logo-red" result="dark-ink">
+                  <feFuncA type="linear" slope="-20" intercept="6.5" />
+                </feComponentTransfer>
+                <feComposite in="dark-ink" in2="SourceAlpha" operator="in" result="dark-ink-mask" />
+                <feFlood floodColor="#ffffff" result="white-ink" />
+                <feComposite in="white-ink" in2="dark-ink-mask" operator="in" result="white-logo-parts" />
+                <feComponentTransfer in="logo-red" result="light-fill">
+                  <feFuncA type="linear" slope="20" intercept="-18.5" />
+                </feComponentTransfer>
+                <feComposite in="light-fill" in2="SourceAlpha" operator="in" result="light-fill-mask" />
+                <feFlood floodColor="#161822" result="dark-fill" />
+                <feComposite in="dark-fill" in2="light-fill-mask" operator="in" result="dark-logo-parts" />
+                <feMerge>
+                  <feMergeNode in="SourceGraphic" />
+                  <feMergeNode in="white-logo-parts" />
+                  <feMergeNode in="dark-logo-parts" />
+                </feMerge>
+              </filter>
+            </defs>
+          </svg>
+          <img className="modern-brand-image" src="/icons/tabicon-dashboard.png" alt="TabMorrow" />
           {popup && (
             <div className="modern-popup-header-actions">
               <button className="modern-theme-btn" type="button" onClick={() => setActiveNav("settings")} aria-label="Open settings" title="Settings">

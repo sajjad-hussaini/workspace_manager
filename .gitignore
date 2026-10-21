@@ -6,6 +6,7 @@ dist_chrome
 public/*
 !public/icons/
 public/icons/*
+!public/icons/tabicon-dashboard.png
 !public/icons/tabm1.png
 !public/icons/tabm3.png
 !public/icons/tabm-icon-16.png

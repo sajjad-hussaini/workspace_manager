@@ -327,16 +327,20 @@
 
 .modern-brand-image {
   display: block;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
+  width: 184px;
+  max-width: 100%;
+  height: auto;
+  flex-shrink: 1;
   object-fit: contain;
 }
 
-.modern-brand-name {
-  font-size: 21px;
-  font-weight: 700;
-  white-space: nowrap;
+.modern-brand-filters {
+  position: absolute;
+  pointer-events: none;
+}
+
+:root[data-theme="dark"] .modern-brand-image {
+  filter: url(#dashboard-logo-dark);
 }
 
 .modern-nav {
