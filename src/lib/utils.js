@@ -1,5 +1,6 @@
 // src/lib/utils.js
 import { tagsMatchSearch } from "./tags.js";
+import { getSaveableTabs } from "./browserWindows.js";
 
 export function getLinkKey(url) {
   try {
@@ -24,24 +25,7 @@ export function getUniqueTabs(tabs) {
 
 export async function getCurrentTabs() {
   const tabs = await chrome.tabs.query({ currentWindow: true });
-
-  console.log(tabs.map(tab => ({
-    title: tab.title,
-    favicon: tab.favIconUrl
-  })));
-
-  return tabs
-    .filter(
-      (tab) =>
-        tab.url &&
-        !tab.url.startsWith("chrome://") &&
-        !tab.url.startsWith("chrome-extension://")
-    )
-    .map((tab) => ({
-      url: tab.url,
-      title: tab.title || "",
-      favicon: tab.favIconUrl || "",
-    }));
+  return getSaveableTabs(tabs).map(({ id, ...tab }) => tab);
 }
 
 export function formatDate(dateString) {

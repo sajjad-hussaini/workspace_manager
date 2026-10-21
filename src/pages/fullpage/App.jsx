@@ -16,6 +16,8 @@ import {
   workspaceMatchesSearch
 } from "../../lib/utils";
 import WorkspaceCard from "./components/WorkspaceCard";
+import BrowserWindowsCard from "./components/BrowserWindowsCard";
+import { getSelectedWindowTabs } from "../../lib/browserWindows";
 import WorkspaceDetail from "./components/WorkspaceDetail";
 import TagInput from "./components/TagInput";
 import { normalizeTag, parseTags } from "../../lib/tags";
@@ -31,14 +33,13 @@ import SettingsPage from "./components/SettingsPage";
 import PopupSettings from "../popup/PopupSettings";
 // import RecentsHistoryPage from "./components/RecentsHistoryPage";
 import { collectReminders, toLocalDateTime, getReminderMinDate, isValidReminderDate } from "../../lib/reminders";
-import { Icon, LinkFavicon } from "./components/Icons";
+import { Icon } from "./components/Icons";
 
 export default function App({ popup = false }) {
   const [sessions, setSessions] = useState([]);
   const activeSessions = useMemo(() => sessions.filter((session) => !session.archivedAt), [sessions]);
   const archivedSessions = useMemo(() => sessions.filter((session) => session.archivedAt), [sessions]);
   const [loading, setLoading] = useState(true);
-  const [currentTabs, setCurrentTabs] = useState([]);
 
   // Save form
   const [title, setTitle] = useState("");
@@ -46,6 +47,7 @@ export default function App({ popup = false }) {
   const [tags, setTags] = useState("");
   const [reminderAt, setReminderAt] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveSource, setSaveSource] = useState(null);
 
   // Search & sort
   const [searchInput, setSearchInput] = useState("");
@@ -116,7 +118,6 @@ export default function App({ popup = false }) {
     getTabWarningPreference().then(setTabWarning);
     getAutoNameQuickSavePreference().then(setAutoNameQuickSave);
     getShowSavedTabCountPreference().then(setShowSavedTabCount);
-    getCurrentTabs().then(setCurrentTabs);
     const unsubscribe = onSessionsChanged(refresh);
     return unsubscribe;
   }, [refresh]);
@@ -250,9 +251,9 @@ export default function App({ popup = false }) {
     }
     setSaving(true);
     try {
-      const tabs = await getCurrentTabs();
+      const tabs = saveSource ? await getSelectedWindowTabs(saveSource) : await getCurrentTabs();
       if (!tabs.length) {
-        showToast("No valid tabs were found in this window.");
+        showToast(saveSource ? "The selected tabs are no longer available. Choose tabs again." : "No valid tabs were found in this window.");
         return false;
       }
       const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
@@ -329,6 +330,9 @@ export default function App({ popup = false }) {
       });
       showToast(`${tabs.length} tabs saved as "${uniqueTitle}".`);
       await refresh();
+    } catch (error) {
+      console.error("Could not save current window:", error);
+      showToast("Could not save this window. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -364,6 +368,35 @@ export default function App({ popup = false }) {
   function saveCurrentTabs() {
     if (autoNameQuickSave) handleQuickSave();
     else openNewWorkspaceModal();
+  }
+
+  async function saveBrowserWindow(source, targetId) {
+    if (!targetId) {
+      openNewWorkspaceModal();
+      setSaveSource(source);
+      setTitle(getUniqueWorkspaceName(source.label, sessions));
+      return true;
+    }
+    setSaving(true);
+    try {
+      // Read the latest workspace to preserve links added by another open view.
+      const [tabs, latestSessions] = await Promise.all([getSelectedWindowTabs(source), getSessions()]);
+      const target = latestSessions.find((session) => session.id === targetId && !session.archivedAt);
+      if (!target) { showToast("This workspace is no longer available. Choose another workspace."); return false; }
+      if (!tabs.length) { showToast("The selected tabs are no longer available. Choose tabs again."); return false; }
+      const mergedTabs = getUniqueTabs([...(target.tabs || []), ...tabs]);
+      const added = mergedTabs.length - (target.tabs || []).length;
+      if (added) await persistSession({ ...target, tabs: mergedTabs });
+      showToast(added ? `${added} link${added === 1 ? "" : "s"} added to "${target.title}".` : `All selected links are already saved in "${target.title}".`);
+      await refresh();
+      return true;
+    } catch (error) {
+      console.error("Could not save selected window:", error);
+      showToast("Could not save the selected window. It may have closed. Please try again.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function markOpened(sessionId, tabIndexes) {
@@ -571,6 +604,7 @@ export default function App({ popup = false }) {
   // ── Workspace modal ────────────────────────────────────────────────────────
 
   function openNewWorkspaceModal() {
+    setSaveSource(null);
     setEditingSession(null);
     setIsEmptyWorkspace(false);
     setTitle("");
@@ -581,6 +615,7 @@ export default function App({ popup = false }) {
   }
 
   function openEmptyWorkspaceModal() {
+    setSaveSource(null);
     setEditingSession(null);
     setIsEmptyWorkspace(true);
     setTitle("");
@@ -591,6 +626,7 @@ export default function App({ popup = false }) {
   }
 
   function closeWorkspaceModal() {
+    setSaveSource(null);
     setNewWorkspaceOpen(false);
     setEditingSession(null);
     setIsEmptyWorkspace(false);
@@ -646,6 +682,7 @@ export default function App({ popup = false }) {
   }
 
   function renameWorkspace(session) {
+    setSaveSource(null);
     setEditingSession(session);
     setIsEmptyWorkspace(false);
     setTitle(session.title || "");
@@ -1305,33 +1342,12 @@ export default function App({ popup = false }) {
 
           {/* 3 Metric Summary Cards Row */}
           <section className="modern-summary-grid">
-            {/* Card 1: Current Browser */}
-            <div className="modern-summary-card is-browser">
-              <div className="modern-browser-header">
-                <strong>Current Browser</strong>
-                <div className="modern-browser-favicons">
-                  {currentTabs.slice(0, 5).map((tab, idx) => (
-                    <LinkFavicon key={tab.url || tab.id || idx} tab={tab} getFaviconUrl={getFaviconUrl} />
-                  ))}
-                  {currentTabs.length > 5 && (
-                    <span className="modern-favicons-extra">+{currentTabs.length - 5}</span>
-                  )}
-                </div>
-              </div>
-
-              <span className="modern-browser-meta">
-                {currentTabs.length} tabs open{!popup && " · Ready to save"}
-              </span>
-
-              <button
-                className="modern-browser-save-btn"
-                onClick={saveCurrentTabs}
-                disabled={saving}
-                type="button"
-              >
-                <Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}
-              </button>
-            </div>
+            <BrowserWindowsCard
+              workspaces={activeSessions}
+              saving={saving}
+              onSaveCurrent={saveCurrentTabs}
+              onSaveWindow={saveBrowserWindow}
+            />
 
             {/* Card 2: Workspaces */}
             {!popup && <>
@@ -1406,7 +1422,7 @@ export default function App({ popup = false }) {
                   <h3 id="workspace-empty-title">No workspaces yet</h3>
                   <p>Save your open tabs as a workspace, or create an empty one and add links later.</p>
                   <div className="workspace-empty-actions">
-                    <button className="workspace-empty-save" onClick={handleQuickSave} disabled={saving} type="button">
+                    <button className="workspace-empty-save" onClick={() => handleQuickSave()} disabled={saving} type="button">
                       <Icon name="plus" /> {saving ? "Saving…" : "Save Current Tabs"}
                     </button>
                     <button className="workspace-empty-create" onClick={openEmptyWorkspaceModal} type="button">
@@ -1449,7 +1465,7 @@ export default function App({ popup = false }) {
             <div className="new-workspace-title-row">
               <div>
                 <h2>{editingSession ? "Edit Workspace" : "New Workspace"}</h2>
-                <p>{editingSession ? "Update this workspace's details." : "Save your current browser tabs in one place."}</p>
+                <p>{editingSession ? "Update this workspace's details." : saveSource ? `Save selected tabs from ${saveSource.label.toLowerCase()}.` : "Save your current browser tabs in one place."}</p>
               </div>
               <button onClick={closeWorkspaceModal} type="button" aria-label="Close"><Icon name="close" /></button>
             </div>

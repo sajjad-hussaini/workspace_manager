@@ -1,0 +1,215 @@
+.browser-windows-badge,
+.browser-windows-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.modern-summary-grid:has(> .browser-windows-card-wrap) {
+  padding-top: 24px;
+}
+
+.browser-windows-card-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.browser-windows-card-wrap>.modern-summary-card {
+  flex: 1;
+}
+
+.browser-windows-badge {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 5px);
+  padding: 3px 7px;
+  border-radius: 12px;
+  background: var(--surface-hover);
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.browser-windows-badge .ui-icon {
+  width: 12px;
+  height: 12px;
+  flex-basis: 12px;
+}
+
+.browser-windows-more {
+  align-self: center;
+  margin-top: 7px;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.browser-windows-more:hover,
+.browser-windows-badge:hover {
+  color: var(--primary);
+}
+
+.new-workspace-dialog.browser-windows-dialog {
+  width: min(100%, 560px);
+}
+
+.browser-windows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.browser-window-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.browser-window-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  background: var(--surface-hover);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.browser-window-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.browser-window-copy strong {
+  font-size: 12px;
+}
+
+.browser-window-copy>span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.browser-window-count {
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.browser-window-panel {
+  padding: 12px;
+}
+
+.browser-window-selection {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.browser-window-selection button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.browser-window-tabs {
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.browser-windows-dialog .browser-window-tab {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  margin: 0;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+
+.browser-windows-dialog .browser-window-tab input {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+.browser-window-tab .link-avatar {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.browser-windows-dialog .browser-window-tab>span:last-child {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browser-window-destination {
+  margin-bottom: 10px;
+}
+
+.browser-window-destination select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.browser-window-empty,
+.browser-windows-hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.browser-windows-hint {
+  margin: 14px 0 0;
+}
+
+.modern-browser-save-btn:disabled {
+  cursor: default;
+  opacity: .55;
+}
+
+.browser-windows-dialog button:focus-visible,
+.browser-windows-dialog select:focus-visible,
+.browser-windows-badge:focus-visible,
+.browser-windows-more:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
