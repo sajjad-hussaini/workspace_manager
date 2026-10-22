@@ -1,4 +1,4 @@
-
+import { markDriveDirty, markSettingUpdated, markWorkspaceDeleted, clearWorkspaceDeletion } from "./driveSync.js";
 
 const PREFIX = "session_";
 const THEME_KEY = "tabWorkspacesTheme";
@@ -32,27 +32,35 @@ export async function getSessions() {
 }
 
 export async function persistSession(session) {
-  const key = keyOf(session.id);
-  const payloadSize = new Blob([JSON.stringify({ [key]: session })]).size;
+  const { storageArea, ...data } = session;
+  const saved = { ...data, updatedAt: new Date().toISOString() };
+  const key = keyOf(saved.id);
+  const payloadSize = new Blob([JSON.stringify({ [key]: saved })]).size;
 
   if (payloadSize <= SYNC_ITEM_LIMIT_BYTES) {
     try {
-      await chrome.storage.sync.set({ [key]: session });
+      await chrome.storage.sync.set({ [key]: saved });
       await chrome.storage.local.remove(key);
+      await clearWorkspaceDeletion(saved.id);
+      await markDriveDirty();
       return "sync";
     } catch (error) {
       console.warn("Sync save failed, falling back to local:", error);
     }
   }
 
-  await chrome.storage.local.set({ [key]: session });
+  await chrome.storage.local.set({ [key]: saved });
   await chrome.storage.sync.remove(key);
+  await clearWorkspaceDeletion(saved.id);
+  await markDriveDirty();
   return "local";
 }
 
 export async function deleteSessionStorage(sessionId) {
   const key = keyOf(sessionId);
   await Promise.all([chrome.storage.sync.remove(key), chrome.storage.local.remove(key)]);
+  await markWorkspaceDeleted(sessionId);
+  await markDriveDirty();
 }
 
 export async function getTheme() {
@@ -62,6 +70,7 @@ export async function getTheme() {
 
 export async function persistTheme(theme) {
   await chrome.storage.local.set({ [THEME_KEY]: theme === "light" ? "light" : "dark" });
+  await markSettingUpdated(THEME_KEY);
 }
 
 export async function getSortPreference() {
@@ -72,6 +81,7 @@ export async function getSortPreference() {
 export async function persistSortPreference(value) {
   if (!SORT_OPTIONS.includes(value)) return;
   await chrome.storage.local.set({ [SORT_KEY]: value });
+  await markSettingUpdated(SORT_KEY);
 }
 
 export async function getOpenBehaviorPreference() {
@@ -82,6 +92,7 @@ export async function getOpenBehaviorPreference() {
 export async function persistOpenBehaviorPreference(value) {
   if (!OPEN_BEHAVIOR_OPTIONS.includes(value)) return;
   await chrome.storage.local.set({ [OPEN_BEHAVIOR_KEY]: value });
+  await markSettingUpdated(OPEN_BEHAVIOR_KEY);
 }
 
 export async function getTabWarningPreference() {
@@ -95,6 +106,7 @@ export async function getTabWarningPreference() {
 export async function persistTabWarningPreference(value) {
   if (typeof value?.enabled !== "boolean" || !Number.isInteger(value.limit) || value.limit < 1) return;
   await chrome.storage.local.set({ [TAB_WARNING_KEY]: value });
+  await markSettingUpdated(TAB_WARNING_KEY);
 }
 
 export async function getAutoNameQuickSavePreference() {
@@ -104,6 +116,7 @@ export async function getAutoNameQuickSavePreference() {
 
 export async function persistAutoNameQuickSavePreference(enabled) {
   await chrome.storage.local.set({ [AUTO_NAME_QUICK_SAVE_KEY]: enabled === true });
+  await markSettingUpdated(AUTO_NAME_QUICK_SAVE_KEY);
 }
 
 export async function getShowSavedTabCountPreference() {
@@ -113,6 +126,7 @@ export async function getShowSavedTabCountPreference() {
 
 export async function persistShowSavedTabCountPreference(enabled) {
   await chrome.storage.local.set({ [SHOW_SAVED_TAB_COUNT_KEY]: enabled === true });
+  await markSettingUpdated(SHOW_SAVED_TAB_COUNT_KEY);
 }
 
 // session on change listerner only callback if the change is relevant to sessions (i.e. key starts with PREFIX)

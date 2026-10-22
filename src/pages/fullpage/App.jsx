@@ -18,6 +18,7 @@ import {
 import WorkspaceCard from "./components/WorkspaceCard";
 import BrowserWindowsCard from "./components/BrowserWindowsCard";
 import { getSelectedWindowTabs } from "../../lib/browserWindows";
+import { DRIVE_SETTING_KEYS, connectGoogleDrive, disconnectGoogleDrive, getDriveStatus, onDriveStatusChanged, syncDriveIfConnected } from "../../lib/driveSync";
 import WorkspaceDetail from "./components/WorkspaceDetail";
 import TagInput from "./components/TagInput";
 import { normalizeTag, parseTags } from "../../lib/tags";
@@ -40,6 +41,8 @@ export default function App({ popup = false }) {
   const activeSessions = useMemo(() => sessions.filter((session) => !session.archivedAt), [sessions]);
   const archivedSessions = useMemo(() => sessions.filter((session) => session.archivedAt), [sessions]);
   const [loading, setLoading] = useState(true);
+  const [driveStatus, setDriveStatus] = useState({ configured: false, connected: false, lastSyncedAt: "", error: "" });
+  const [driveBusy, setDriveBusy] = useState(false);
 
   // Save form
   const [title, setTitle] = useState("");
@@ -110,17 +113,49 @@ export default function App({ popup = false }) {
     setLoading(false);
   }, []);
 
+  const refreshPreferences = useCallback(async () => {
+    const [nextTheme, nextSort, nextOpenBehavior, nextTabWarning, nextAutoName, nextShowCount] = await Promise.all([
+      getTheme(), getSortPreference(), getOpenBehaviorPreference(), getTabWarningPreference(),
+      getAutoNameQuickSavePreference(), getShowSavedTabCountPreference()
+    ]);
+    setTheme(nextTheme);
+    setSortKey(nextSort);
+    setOpenBehavior(nextOpenBehavior);
+    setTabWarning(nextTabWarning);
+    setAutoNameQuickSave(nextAutoName);
+    setShowSavedTabCount(nextShowCount);
+  }, []);
+
   useEffect(() => {
     refresh();
-    getTheme().then(setTheme);
-    getSortPreference().then(setSortKey);
-    getOpenBehaviorPreference().then(setOpenBehavior);
-    getTabWarningPreference().then(setTabWarning);
-    getAutoNameQuickSavePreference().then(setAutoNameQuickSave);
-    getShowSavedTabCountPreference().then(setShowSavedTabCount);
+    refreshPreferences();
     const unsubscribe = onSessionsChanged(refresh);
     return unsubscribe;
-  }, [refresh]);
+  }, [refresh, refreshPreferences]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const update = async () => {
+      const status = await getDriveStatus();
+      if (!cancelled) setDriveStatus(status);
+    };
+    const pull = async () => {
+      const status = await getDriveStatus();
+      if (!status.connected) return;
+      await syncDriveIfConnected();
+      if (!cancelled) { await Promise.all([refresh(), refreshPreferences(), update()]); }
+    };
+    update();
+    pull();
+    const unsubscribe = onDriveStatusChanged(update);
+    const onPreferencesChanged = (changes, area) => {
+      if (area === "local" && DRIVE_SETTING_KEYS.some((key) => changes[key])) void refreshPreferences();
+    };
+    chrome.storage.onChanged.addListener(onPreferencesChanged);
+    const timer = setInterval(pull, 5 * 60 * 1000);
+    window.addEventListener("focus", pull);
+    return () => { cancelled = true; unsubscribe(); chrome.storage.onChanged.removeListener(onPreferencesChanged); clearInterval(timer); window.removeEventListener("focus", pull); };
+  }, [refresh, refreshPreferences]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -1021,6 +1056,42 @@ export default function App({ popup = false }) {
     await persistTheme(next);
   }
 
+  async function handleConnectDrive() {
+    setDriveBusy(true);
+    try {
+      await connectGoogleDrive();
+      await Promise.all([refresh(), refreshPreferences()]);
+      showToast("Google Drive connected. Your data is synced.");
+    } catch (error) {
+      console.error("Could not connect Google Drive:", error);
+      showToast(error.message || "Could not connect Google Drive.");
+    } finally {
+      setDriveStatus(await getDriveStatus());
+      setDriveBusy(false);
+    }
+  }
+
+  async function handleSyncDrive() {
+    setDriveBusy(true);
+    try {
+      await syncDriveIfConnected();
+      await Promise.all([refresh(), refreshPreferences()]);
+      const status = await getDriveStatus();
+      setDriveStatus(status);
+      showToast(status.error || "Google Drive sync is up to date.");
+    } finally {
+      setDriveBusy(false);
+    }
+  }
+
+  async function handleDisconnectDrive() {
+    setDriveBusy(true);
+    await disconnectGoogleDrive();
+    setDriveStatus(await getDriveStatus());
+    setDriveBusy(false);
+    showToast("Google Drive sync stopped. Your local data remains available.");
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   async function openFullManager(view = "all") {
@@ -1258,6 +1329,10 @@ export default function App({ popup = false }) {
             onImport={handleImportJson}
             onAdvancedSettings={() => openFullManager("settings")}
             onBack={() => setActiveNav("all")}
+            driveStatus={driveStatus}
+            driveBusy={driveBusy}
+            onDriveConnect={handleConnectDrive}
+            onDriveSync={handleSyncDrive}
           /> : activeNav === "settings" ? <SettingsPage
             theme={theme}
             onThemeChange={async (next) => { setTheme(next); await persistTheme(next); }}
@@ -1278,6 +1353,11 @@ export default function App({ popup = false }) {
             onExport={handleExportCsv}
             onBackup={handleExportJson}
             onImport={handleImportJson}
+            driveStatus={driveStatus}
+            driveBusy={driveBusy}
+            onDriveConnect={handleConnectDrive}
+            onDriveSync={handleSyncDrive}
+            onDriveDisconnect={handleDisconnectDrive}
           /> : activeNav === "archived" ? <ArchivedPage
             sessions={archivedSessions}
             loading={loading}

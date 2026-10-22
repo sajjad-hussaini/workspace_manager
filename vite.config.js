@@ -1,10 +1,10 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { crx } from "@crxjs/vite-plugin";
-import manifest from "./manifest.config.js";
+import createManifest from "./manifest.config.js";
 
-export default defineConfig({
-  plugins: [react(), crx({ manifest })],
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), crx({ manifest: createManifest(loadEnv(mode, process.cwd(), "GOOGLE_").GOOGLE_OAUTH_CLIENT_ID) })],
   build: {
     rollupOptions: {
       input: {
@@ -21,4 +21,4 @@ export default defineConfig({
       port: 5173
     }
   }
-});
+}));

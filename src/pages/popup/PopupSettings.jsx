@@ -7,7 +7,8 @@ function SettingIcon({ name }) {
 
 export default function PopupSettings({
   theme, onThemeChange, sortKey, onSortChange, openBehavior, onOpenBehaviorChange,
-  tabWarning, onTabWarningChange, onExport, onBackup, onImport, onAdvancedSettings, onBack
+  tabWarning, onTabWarningChange, onExport, onBackup, onImport, onAdvancedSettings, onBack,
+  driveStatus, driveBusy, onDriveConnect, onDriveSync
 }) {
   const [showBackup, setShowBackup] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -96,6 +97,11 @@ export default function PopupSettings({
 
     <div className="popup-settings-section-title">DATA &amp; BACKUP</div>
     <div className="popup-settings-card">
+      <div className="popup-settings-row">
+        <SettingIcon name="database" />
+        <span className="popup-settings-copy"><strong>Google Drive</strong><small>{driveStatus.error || (driveStatus.connected ? "Connected and syncing" : driveStatus.configured ? "Store your data in Drive" : "Setup required")}</small></span>
+        <button type="button" className="popup-backup-button" disabled={driveBusy || !driveStatus.configured} onClick={driveStatus.connected && !driveStatus.error ? onDriveSync : onDriveConnect}>{driveBusy ? "Please wait…" : driveStatus.error ? "Reconnect" : driveStatus.connected ? "Sync" : "Connect"}</button>
+      </div>
       <button type="button" className="popup-settings-action" onClick={onExport}>
         <SettingIcon name="download" /><span className="popup-settings-copy"><strong>Export workspaces</strong><small>Download a CSV file</small></span><span className="popup-settings-chevron">›</span>
       </button>

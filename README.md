@@ -28,6 +28,20 @@ npm run build
 
 The output will be generated in the `dist` folder. This is the folder you should zip before uploading to the Chrome Web Store.
 
+## Google Drive sync
+
+TabMorrow can save workspaces, archived items, links, notes, reminders, and preferences in Google Drive's private `appDataFolder`. A local copy remains available when offline. Existing local workspaces are merged into Drive on the first connection. Changes sync automatically while connected; Settings → Data & Backup shows the last successful sync or an error and offers **Sync now**.
+
+Google OAuth requires a client ID for this extension ID:
+
+1. Build and load the unpacked extension, then copy its ID from `chrome://extensions`. Keep the same extension ID for subsequent builds.
+2. In Google Cloud Console, enable the Google Drive API and configure the OAuth consent screen. Add your Google account as a test user if the app is in testing mode.
+3. Create an OAuth client of type **Chrome Extension** using the extension ID from step 1.
+4. Create `.env.local` in the project root with `GOOGLE_OAUTH_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com`, then rebuild and reload the extension. No client secret is used in the extension.
+5. Open **Settings → Data & Backup → Connect Google Drive** and sign in.
+
+Without a configured OAuth client ID, the extension keeps using its existing Chrome storage and the Connect button stays disabled. Google Drive's app-data folder is hidden from the normal Drive file list; use **Download Backup** if you want a visible JSON copy. Stopping sync leaves both the local copy and the existing Drive data intact.
+
 ## Project structure
 
 ```

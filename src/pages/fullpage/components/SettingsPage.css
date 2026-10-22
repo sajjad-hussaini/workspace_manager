@@ -70,6 +70,8 @@
 .settings-action-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 8px; background: var(--slate-100); color: var(--slate-500); }
 .settings-action-icon .ui-icon { width: 15px; height: 15px; }
 .settings-page .library-button { flex: 0 0 auto; font-size: 12px; white-space: nowrap; }
+.settings-drive-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.settings-drive-card .settings-row-copy p[role="alert"] { color: var(--danger); }
 .settings-page button:focus-visible, .settings-page select:focus-visible, .settings-page summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 :root[data-theme="dark"] .settings-list-card, :root[data-theme="dark"] .settings-appearance-card, :root[data-theme="dark"] .settings-stats-card, :root[data-theme="dark"] .settings-page .settings-theme-option { background: #191c26; border-color: #2b2e3b; color: #f8fafc; }
 :root[data-theme="dark"] .settings-row-copy strong, :root[data-theme="dark"] .settings-card-intro strong, :root[data-theme="dark"] .settings-export strong { color: #f8fafc; }
