@@ -1,0 +1,130 @@
+.drive-sync-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--slate-200);
+    border-radius: 12px;
+    background: var(--slate-50);
+}
+
+.drive-sync-copy {
+    flex: 1;
+    min-width: 160px;
+    overflow-wrap: anywhere;
+}
+
+.drive-sync-copy strong {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--slate-900);
+    font-size: 13px;
+}
+
+.drive-sync-copy strong .ui-icon {
+    flex: 0 0 16px;
+    color: var(--primary);
+}
+
+.drive-sync-card p {
+    margin: 7px 0 0;
+    color: var(--slate-600);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.drive-sync-card .drive-sync-meta {
+    color: var(--slate-500);
+    font-size: 11px;
+}
+
+.drive-sync-card>.drive-sync-meta {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.drive-sync-card .drive-sync-error {
+    color: var(--danger);
+}
+
+.drive-sync-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.drive-sync-button {
+    padding: 9px 13px;
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    background: var(--primary);
+    color: #fff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.drive-sync-button:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.drive-sync-button.is-secondary {
+    background: transparent;
+    border-color: var(--slate-300);
+    color: var(--slate-600);
+}
+
+.drive-sync-button:disabled {
+    opacity: .55;
+    cursor: default;
+}
+
+.drive-sync-button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
+.drive-sync-card.is-compact {
+    margin: auto 0 0;
+    padding: 14px;
+    gap: 12px;
+}
+
+.drive-sync-card.is-compact .drive-sync-copy {
+    min-width: 0;
+    flex-basis: 100%;
+}
+
+.drive-sync-card.is-compact .drive-sync-actions,
+.drive-sync-card.is-compact .drive-sync-button {
+    width: 100%;
+}
+
+.drive-sync-card.is-compact p {
+    font-size: 11px;
+}
+
+:root[data-theme="dark"] .drive-sync-card {
+    background: #202431;
+    border-color: #2b2e3b;
+}
+
+:root[data-theme="dark"] .drive-sync-copy strong {
+    color: #f8fafc;
+}
+
+:root[data-theme="dark"] .drive-sync-card p,
+:root[data-theme="dark"] .drive-sync-button.is-secondary {
+    color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .drive-sync-card .drive-sync-meta {
+    color: #94a3b8;
+}
+
+:root[data-theme="dark"] .drive-sync-card .drive-sync-error {
+    color: #fda4af;
+}

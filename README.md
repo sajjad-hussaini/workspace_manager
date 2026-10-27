@@ -38,7 +38,25 @@ Google OAuth requires a client ID for this extension ID:
 2. In Google Cloud Console, enable the Google Drive API and configure the OAuth consent screen. Add your Google account as a test user if the app is in testing mode.
 3. Create an OAuth client of type **Chrome Extension** using the extension ID from step 1.
 4. Create `.env.local` in the project root with `GOOGLE_OAUTH_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com`, then rebuild and reload the extension. No client secret is used in the extension.
-5. Open **Settings → Data & Backup → Connect Google Drive** and sign in.
+5. Click **Sign in with Google** in the dashboard sidebar or under **Settings → Data & Backup**. Existing data is merged with Drive; later changes sync automatically, with a background check every five minutes.
+
+### Where to get the Google client ID
+
+This is a one-time setup for the developer. Users only need to sign in with Google.
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) and create or select a project.
+2. Under **APIs & Services → Library**, search for **Google Drive API** and enable it.
+3. Open **Google Auth Platform**. Complete **Branding**, choose your **Audience**, and add your Google account under **Test users** while testing.
+4. In **Clients**, select **Create client → Chrome Extension**. Paste TabMorrow's extension ID from `chrome://extensions` into **Application ID**.
+5. Copy the resulting **Client ID**, then create `.env.local` in this project:
+
+   ```dotenv
+   GOOGLE_OAUTH_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+   ```
+
+6. Run `npm run build` and reload TabMorrow at `chrome://extensions`.
+
+Keep the extension ID stable between development and release; the OAuth client must match it. Before public release, configure the consent screen for your intended audience. See [Chrome's OAuth setup guide](https://developer.chrome.com/docs/extensions/how-to/integrate/oauth) and [Drive app-data documentation](https://developers.google.com/workspace/drive/api/guides/appdata).
 
 Without a configured OAuth client ID, the extension keeps using its existing Chrome storage and the Connect button stays disabled. Google Drive's app-data folder is hidden from the normal Drive file list; use **Download Backup** if you want a visible JSON copy. Stopping sync leaves both the local copy and the existing Drive data intact.
 

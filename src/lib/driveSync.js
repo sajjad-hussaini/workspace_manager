@@ -17,7 +17,6 @@ export const DRIVE_SETTING_KEYS = [
 ];
 
 let pendingSync = Promise.resolve();
-let refreshedToken = null;
 
 function isConfigured() {
   return Boolean(chrome.runtime.getManifest().oauth2?.client_id);
@@ -28,7 +27,11 @@ function configuredClientId() {
 }
 
 function queue(task) {
-  const result = pendingSync.catch(() => {}).then(task);
+  // Popup, manager tabs, and the service worker share this extension's lock.
+  const run = () => globalThis.navigator?.locks
+    ? navigator.locks.request("tabmorrow-drive-sync", task)
+    : task();
+  const result = pendingSync.catch(() => {}).then(run);
   pendingSync = result.catch(() => {});
   return result;
 }
@@ -79,16 +82,15 @@ async function authToken(interactive) {
 }
 
 async function driveRequest(url, options = {}, token) {
-  let currentToken = refreshedToken || token;
   for (let attempt = 0; attempt < 2; attempt++) {
     const response = await fetch(url, {
       ...options,
-      headers: { ...(options.headers || {}), Authorization: `Bearer ${currentToken}` }
+      headers: { ...(options.headers || {}), Authorization: `Bearer ${token.value}` },
+      signal: AbortSignal.timeout(60_000)
     });
     if (response.status === 401 && attempt === 0) {
-      await chrome.identity.removeCachedAuthToken({ token: currentToken });
-      currentToken = await authToken(false);
-      refreshedToken = currentToken;
+      await chrome.identity.removeCachedAuthToken({ token: token.value });
+      token.value = await authToken(false);
       continue;
     }
     if (!response.ok) {
@@ -263,10 +265,16 @@ async function syncWithToken(token) {
 }
 
 export function connectGoogleDrive() {
+  // Start the interactive API directly from the user's click. Only Drive work
+  // waits for the shared lock; a background sync must not delay Google's UI.
+  const authorization = authToken(true).then(
+    (value) => ({ value }),
+    (error) => ({ error })
+  );
   return queue(async () => {
     try {
-      const token = await authToken(true);
-      refreshedToken = token;
+      const token = await authorization;
+      if (token.error) throw token.error;
       return await syncWithToken(token);
     }
     catch (error) { await updateState({ error: error.message }); throw error; }
@@ -277,7 +285,7 @@ export function syncDriveIfConnected() {
   return queue(async () => {
     const state = await getDriveStatus();
     if (!state.connected) return null;
-    try { return await syncWithToken(await authToken(false)); }
+    try { return await syncWithToken({ value: await authToken(false) }); }
     catch (error) { await updateState({ error: error.message }); return null; }
   });
 }

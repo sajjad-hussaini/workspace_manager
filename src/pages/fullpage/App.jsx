@@ -31,6 +31,7 @@ import ReminderSummary from "./components/ReminderSummary";
 import RemindersPage from "./components/RemindersPage";
 import ArchivedPage from "./components/ArchivedPage";
 import SettingsPage from "./components/SettingsPage";
+import DriveSyncCard from "./components/DriveSyncCard";
 import PopupSettings from "../popup/PopupSettings";
 // import RecentsHistoryPage from "./components/RecentsHistoryPage";
 import { collectReminders, toLocalDateTime, getReminderMinDate, isValidReminderDate } from "../../lib/reminders";
@@ -1057,6 +1058,9 @@ export default function App({ popup = false }) {
   }
 
   async function handleConnectDrive() {
+    // Chrome closes its toolbar popup when the Google window takes focus.
+    // Complete authorization in a persistent manager tab instead.
+    if (popup) return openFullManager("drive");
     setDriveBusy(true);
     try {
       await connectGoogleDrive();
@@ -1086,17 +1090,24 @@ export default function App({ popup = false }) {
 
   async function handleDisconnectDrive() {
     setDriveBusy(true);
-    await disconnectGoogleDrive();
-    setDriveStatus(await getDriveStatus());
-    setDriveBusy(false);
-    showToast("Google Drive sync stopped. Your local data remains available.");
+    try {
+      await disconnectGoogleDrive();
+      setDriveStatus(await getDriveStatus());
+      showToast("Google Drive sync stopped. Your local data remains available.");
+    } catch (error) {
+      showToast(error.message || "Could not stop Google Drive sync.");
+    } finally {
+      setDriveBusy(false);
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   async function openFullManager(view = "all") {
     const url = chrome.runtime.getURL("src/pages/fullpage/index.html");
-    await chrome.tabs.create({ url: view === "settings" ? `${url}?view=settings` : url });
+    const target = view === "drive" ? `${url}?view=settings&section=data`
+      : view === "settings" ? `${url}?view=settings` : url;
+    await chrome.tabs.create({ url: target });
     window.close();
   }
 
@@ -1270,21 +1281,7 @@ export default function App({ popup = false }) {
         </nav>}
 
         {/* Bottom Extension Card */}
-        {!popup && <div className="modern-sidebar-card">
-          <strong className="modern-card-title">Browser extension</strong>
-          <p className="modern-card-desc">Save and restore tabs without leaving Chrome.</p>
-          {/* <button
-            className="modern-card-link"
-            onClick={() => {
-              const url = chrome?.runtime?.getURL ? chrome.runtime.getURL("src/pages/popup/index.html") : "/src/pages/popup/index.html";
-              window.open(url, "_blank");
-            }}
-            type="button"
-          >
-            <span>Open popup preview</span>
-            <Icon name="arrowRight" />
-          </button> */}
-        </div>}
+        {!popup && <DriveSyncCard compact status={driveStatus} busy={driveBusy} onConnect={handleConnectDrive} onSync={handleSyncDrive} />}
       </aside>}
 
       {/* ── Main Page Content ── */}

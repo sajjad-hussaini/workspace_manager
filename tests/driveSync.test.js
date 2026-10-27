@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { connectGoogleDrive, getDriveStatus, mergeDriveSnapshots } from "../src/lib/driveSync.js";
+import { connectGoogleDrive, disconnectGoogleDrive, getDriveStatus, mergeDriveSnapshots, syncDriveIfConnected } from "../src/lib/driveSync.js";
 
 function storageArea(initial = {}) {
   const data = { ...initial };
@@ -193,4 +193,109 @@ test("newer workspace edits win while deletion tombstones prevent resurrection",
   assert.equal(merged.workspaces.shared.title, "New");
   assert.equal(merged.workspaces.gone, undefined);
   assert.equal(merged.deleted.gone, 200);
+});
+
+test("automatic sync refreshes expired tokens and uses the current account token on the next run", async () => {
+  const previousChrome = globalThis.chrome;
+  const previousFetch = globalThis.fetch;
+  const local = storageArea();
+  const remote = { format: "tabmorrow-drive", version: 1, workspaces: {}, deleted: {}, settings: {} };
+  const authCalls = [];
+  const removed = [];
+  const requests = [];
+  const tokens = ["sign-in", "expired", "refreshed", "current"];
+  globalThis.chrome = {
+    runtime: { getManifest: () => ({ oauth2: { client_id: "test.apps.googleusercontent.com" } }) },
+    identity: {
+      getAuthToken: async (options) => { authCalls.push(options.interactive); return { token: tokens.shift() }; },
+      removeCachedAuthToken: async ({ token }) => { removed.push(token); }
+    },
+    storage: { local, sync: storageArea() }
+  };
+  globalThis.fetch = async (url, options) => {
+    const token = options.headers.Authorization;
+    requests.push(token);
+    if (token === "Bearer expired") return response({}, 401);
+    return response(String(url).includes("alt=media") ? remote : { files: [{ id: "drive-file" }] });
+  };
+  try {
+    await connectGoogleDrive();
+    await syncDriveIfConnected();
+    await syncDriveIfConnected();
+    assert.deepEqual(authCalls, [true, false, false, false]);
+    assert.deepEqual(removed, ["expired"]);
+    assert.deepEqual(requests, ["Bearer sign-in", "Bearer sign-in", "Bearer expired", "Bearer refreshed", "Bearer refreshed", "Bearer current", "Bearer current"]);
+    await disconnectGoogleDrive();
+    assert.equal(await syncDriveIfConnected(), null);
+    assert.equal(authCalls.length, 4);
+    assert.equal((await getDriveStatus()).connected, false);
+  } finally {
+    globalThis.chrome = previousChrome;
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("a rejected sign-in is shown in Drive status without making Drive requests", async () => {
+  const previousChrome = globalThis.chrome;
+  const previousFetch = globalThis.fetch;
+  let driveCalls = 0;
+  globalThis.chrome = {
+    runtime: { getManifest: () => ({ oauth2: { client_id: "test.apps.googleusercontent.com" } }) },
+    identity: { getAuthToken: async () => { throw new Error("OAuth2 not granted or revoked."); } },
+    storage: { local: storageArea(), sync: storageArea() }
+  };
+  globalThis.fetch = async () => { driveCalls++; throw new Error("Unexpected Drive request"); };
+  try {
+    await assert.rejects(connectGoogleDrive(), /OAuth2 not granted or revoked/);
+    const status = await getDriveStatus();
+    assert.equal(status.connected, false);
+    assert.match(status.error, /OAuth2 not granted or revoked/);
+    assert.equal(driveCalls, 0);
+  } finally {
+    globalThis.chrome = previousChrome;
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("sign-in starts immediately while Drive requests wait for the shared extension lock", async () => {
+  const previousChrome = globalThis.chrome;
+  const previousFetch = globalThis.fetch;
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  let release;
+  let lockName;
+  let authCalls = 0;
+  let driveCalls = 0;
+  const locked = new Promise((resolve) => { release = resolve; });
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {
+    locks: { request: async (name, task) => { lockName = name; await locked; return task(); } }
+  } });
+  globalThis.chrome = {
+    runtime: { getManifest: () => ({ oauth2: { client_id: "test.apps.googleusercontent.com" } }) },
+    identity: { getAuthToken: async () => { authCalls++; return { token: "test-token" }; } },
+    storage: { local: storageArea(), sync: storageArea() }
+  };
+  globalThis.fetch = async (url) => {
+    driveCalls++;
+    return response(String(url).includes("alt=media")
+      ? { format: "tabmorrow-drive", version: 1, workspaces: {}, deleted: {}, settings: {} }
+      : { files: [{ id: "drive-file" }] });
+  };
+  try {
+    const connection = connectGoogleDrive();
+    assert.equal(authCalls, 1);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(lockName, "tabmorrow-drive-sync");
+    assert.equal(driveCalls, 0);
+    release();
+    await connection;
+    assert.equal(authCalls, 1);
+    assert.equal(driveCalls, 2);
+    assert.equal((await getDriveStatus()).connected, true);
+  } finally {
+    release();
+    globalThis.chrome = previousChrome;
+    globalThis.fetch = previousFetch;
+    if (navigatorDescriptor) Object.defineProperty(globalThis, "navigator", navigatorDescriptor);
+    else delete globalThis.navigator;
+  }
 });

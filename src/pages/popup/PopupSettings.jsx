@@ -99,8 +99,8 @@ export default function PopupSettings({
     <div className="popup-settings-card">
       <div className="popup-settings-row">
         <SettingIcon name="database" />
-        <span className="popup-settings-copy"><strong>Google Drive</strong><small>{driveStatus.error || (driveStatus.connected ? "Connected and syncing" : driveStatus.configured ? "Store your data in Drive" : "Setup required")}</small></span>
-        <button type="button" className="popup-backup-button" disabled={driveBusy || !driveStatus.configured} onClick={driveStatus.connected && !driveStatus.error ? onDriveSync : onDriveConnect}>{driveBusy ? "Please wait…" : driveStatus.error ? "Reconnect" : driveStatus.connected ? "Sync" : "Connect"}</button>
+        <span className="popup-settings-copy"><strong>Google Drive</strong><small>{driveStatus.error || (driveStatus.connected ? "Your data syncs automatically" : driveStatus.configured ? "Continue sign-in in your dashboard" : "Google sign-in setup pending")}</small></span>
+        <button type="button" className="popup-backup-button" disabled={driveBusy || !driveStatus.configured} onClick={driveStatus.connected && !driveStatus.error ? onDriveSync : onDriveConnect}>{driveBusy ? "Please wait…" : driveStatus.error ? "Reconnect" : driveStatus.connected ? "Sync" : "Sign in"}</button>
       </div>
       <button type="button" className="popup-settings-action" onClick={onExport}>
         <SettingIcon name="download" /><span className="popup-settings-copy"><strong>Export workspaces</strong><small>Download a CSV file</small></span><span className="popup-settings-chevron">›</span>

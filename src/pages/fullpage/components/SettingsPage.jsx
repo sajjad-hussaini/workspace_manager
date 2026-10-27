@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icons";
+import DriveSyncCard from "./DriveSyncCard";
 import "./LibraryPages.css";
 import "./SettingsPage.css";
 
@@ -25,7 +26,10 @@ function ThemePreview({ dark }) {
 }
 
 export default function SettingsPage({ theme, onThemeChange, onToggleTheme, sortKey, onSortChange, openBehavior, onOpenBehaviorChange, tabWarning, onTabWarningChange, autoNameQuickSave, onAutoNameQuickSaveChange, showSavedTabCount, onShowSavedTabCountChange, activeCount, archivedCount, tabCount, onExport, onBackup, onImport, driveStatus, driveBusy, onDriveConnect, onDriveSync, onDriveDisconnect }) {
-  const [section, setSection] = useState("general");
+  const [section, setSection] = useState(() => {
+    const requested = new URLSearchParams(window.location.search).get("section");
+    return sections.some((item) => item.id === requested) ? requested : "general";
+  });
   const [importing, setImporting] = useState(false);
   const [limitInput, setLimitInput] = useState(String(tabWarning.limit));
   const fileInput = useRef(null);
@@ -72,23 +76,7 @@ export default function SettingsPage({ theme, onThemeChange, onToggleTheme, sort
         {section === "data" && <><div className="settings-stats-card"><div className="settings-stats"><div><Icon name="window" /><strong>{activeCount}</strong><span>Active Workspaces</span></div><div><Icon name="archive" /><strong>{archivedCount}</strong><span>Archived Workspaces</span></div><div><Icon name="link" /><strong>{tabCount}</strong><span>Saved Tabs</span></div></div></div><div className="settings-export-heading"><h3>Export your data</h3><p>Download a copy of your workspace information.</p></div><div className="settings-list-card settings-export-list"><div className="settings-export"><span className="settings-action-icon"><Icon name="download" /></span><div><strong>Export Workspaces</strong><p>Download workspace and saved tab details in CSV format.</p></div><button type="button" className="library-button is-primary" onClick={onExport} disabled={activeCount + archivedCount === 0}>Export CSV</button></div><div className="settings-export"><span className="settings-action-icon"><Icon name="database" /></span><div><strong>Create Backup</strong><p>Save a complete JSON backup of your workspaces, archived items, notes, and reminders.</p></div><button type="button" className="library-button" onClick={onBackup} disabled={activeCount + archivedCount === 0}><Icon name="download" /> Download Backup</button></div><div className="settings-export"><span className="settings-action-icon"><Icon name="upload" /></span><div><strong>Import Backup</strong><p>Restore data from an existing TabMorrow backup file.</p></div><input ref={fileInput} className="settings-file-input" type="file" accept=".json,application/json" onChange={importFile} aria-label="Choose backup JSON file" /><button type="button" className="library-button" disabled={importing} onClick={() => fileInput.current?.click()}><Icon name="upload" /> {importing ? "Importing…" : "Import JSON"}</button></div></div></>}
         {section === "data" && <>
           <div className="settings-export-heading"><h3>Google Drive sync</h3><p>Keep workspaces, notes, reminders, and preferences in your Google account.</p></div>
-          <div className="settings-list-card settings-drive-card">
-            <div className="settings-list-row">
-              <div className="settings-row-copy">
-                <strong>{driveStatus.connected ? "Connected to Google Drive" : "Connect Google Drive"}</strong>
-                <p role={driveStatus.error ? "alert" : undefined}>{driveStatus.error || (driveStatus.connected
-                  ? `Last synced ${driveStatus.lastSyncedAt ? new Date(driveStatus.lastSyncedAt).toLocaleString() : "just now"}. Data is also cached locally for offline use.`
-                  : driveStatus.configured ? "Sign in to sync your existing data to Drive's private app-data folder." : "Google Drive setup is required for this extension build.")}</p>
-              </div>
-              <div className="settings-drive-actions">
-                {driveStatus.connected ? <>
-                  <button type="button" className="library-button is-primary" onClick={onDriveSync} disabled={driveBusy}>{driveBusy ? "Syncing…" : "Sync now"}</button>
-                  {driveStatus.error && <button type="button" className="library-button" onClick={onDriveConnect} disabled={driveBusy}>Reconnect</button>}
-                  <button type="button" className="library-button" onClick={onDriveDisconnect} disabled={driveBusy}>Stop sync</button>
-                </> : <button type="button" className="library-button is-primary" onClick={onDriveConnect} disabled={driveBusy || !driveStatus.configured}>{driveBusy ? "Connecting…" : "Connect"}</button>}
-              </div>
-            </div>
-          </div>
+          <DriveSyncCard status={driveStatus} busy={driveBusy} onConnect={onDriveConnect} onSync={onDriveSync} onDisconnect={onDriveDisconnect} />
         </>}
       </div>
     </div>
