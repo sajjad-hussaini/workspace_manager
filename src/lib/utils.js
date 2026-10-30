@@ -2,6 +2,20 @@
 import { tagsMatchSearch } from "./tags.js";
 import { getSaveableTabs } from "./browserWindows.js";
 
+export function normalizeLinkUrl(value) {
+  const input = value.trim();
+  if (!input || /\s/.test(input)) throw new Error("Invalid link URL");
+
+  // A hostname with a port (localhost:3000) is not a URL scheme.
+  const hasScheme = /^[a-z][a-z\d+.-]*:/i.test(input)
+    && !/^[^/?#:]+:\d+(?:[/?#]|$)/.test(input);
+  const url = new URL(hasScheme ? input : `https://${input.replace(/^\/\//, "")}`);
+  if (!hasScheme && !url.hostname.includes(".") && url.hostname !== "localhost" && !url.hostname.startsWith("[")) {
+    throw new Error("Invalid link URL");
+  }
+  return url.href;
+}
+
 export function getLinkKey(url) {
   try {
     const parsed = new URL(url);

@@ -10,6 +10,7 @@ import {
   getCurrentTabs,
   getUniqueTabs,
   getLinkKey,
+  normalizeLinkUrl,
   sortSessions,
   getFaviconUrl,
   exportWorkspacesToCsv,
@@ -104,7 +105,7 @@ export default function App({ popup = false }) {
   const [confirmState, setConfirmState] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const showToast = useCallback((message) => setToast({ id: Date.now(), message }), []);
+  const showToast = useCallback((message, type = "info") => setToast({ id: Date.now(), message, type }), []);
 
   const refresh = useCallback(async () => {
     if (movingRef.current) return;
@@ -274,7 +275,7 @@ export default function App({ popup = false }) {
 
   function validateReminder(value) {
     if (isValidReminderDate(value)) return true;
-    showToast("Choose a reminder date of today or later.");
+    showToast("Choose a reminder date of today or later.", "error");
     return false;
   }
 
@@ -282,7 +283,7 @@ export default function App({ popup = false }) {
     if (!validateReminder(reminderAt)) return false;
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      showToast("Enter a workspace name first.");
+      showToast("Enter a workspace name first.", "error");
       return false;
     }
     setSaving(true);
@@ -676,7 +677,7 @@ export default function App({ popup = false }) {
     if (!validateReminder(reminderAt)) return;
     const nextTitle = title.trim();
     if (!nextTitle) {
-      showToast("Enter a workspace name first.");
+      showToast("Enter a workspace name first.", "error");
       return;
     }
     const reminderIso = reminderAt ? new Date(reminderAt).toISOString() : "";
@@ -770,9 +771,9 @@ export default function App({ popup = false }) {
   async function saveLinkEditor() {
     if (!editingLink) return;
     if (!validateReminder(linkReminderAt)) return;
-    const trimmedUrl = linkUrl.trim();
-    try { new URL(trimmedUrl); } catch {
-      showToast("Enter a valid link URL (e.g. https://example.com).");
+    let normalizedUrl;
+    try { normalizedUrl = normalizeLinkUrl(linkUrl); } catch {
+      showToast(linkUrl.trim() ? "Enter a valid link URL (e.g. google.com)." : "Enter a link URL first.", "error");
       return;
     }
     const { session, tabIndex } = editingLink;
@@ -780,8 +781,8 @@ export default function App({ popup = false }) {
 
     if (tabIndex === -1) {
       const newTab = {
-        title: linkTitle.trim() || trimmedUrl,
-        url: trimmedUrl,
+        title: linkTitle.trim() || linkUrl.trim(),
+        url: normalizedUrl,
         note: linkNote.trim(),
         tags: parseTags(linkTags),
         reminderAt: linkReminderAt ? new Date(linkReminderAt).toISOString() : ""
@@ -798,7 +799,7 @@ export default function App({ popup = false }) {
     updatedTabs[tabIndex] = {
       ...currentTab,
       title: linkTitle.trim(),
-      url: trimmedUrl,
+      url: normalizedUrl,
       note: linkNote.trim(),
       tags: parseTags(linkTags),
       reminderAt: linkReminderAt ? new Date(linkReminderAt).toISOString() : ""
@@ -1559,6 +1560,7 @@ export default function App({ popup = false }) {
         <div className="new-workspace-backdrop" onClick={closeWorkspaceModal} role="presentation">
           <form
             className="new-workspace-dialog"
+            noValidate
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => { e.preventDefault(); saveWorkspaceModal(); }}
           >
@@ -1588,6 +1590,7 @@ export default function App({ popup = false }) {
         <div className="new-workspace-backdrop" onClick={closeLinkEditor} role="presentation">
           <form
             className="new-workspace-dialog link-edit-dialog"
+            noValidate
             role="dialog"
             aria-modal="true"
             aria-labelledby="link-dialog-title"
@@ -1602,7 +1605,7 @@ export default function App({ popup = false }) {
               <button onClick={closeLinkEditor} type="button" aria-label="Close"><Icon name="close" /></button>
             </div>
             <label>Title<input value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} placeholder="Link title" autoFocus /></label>
-            <label>URL<input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://example.com" /></label>
+            <label>URL<input type="text" inputMode="url" autoCapitalize="none" spellCheck={false} value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="google.com" /></label>
             <label>Notes <span>(optional)</span><textarea value={linkNote} onChange={(e) => setLinkNote(e.target.value)} placeholder="What is this link for?" rows="3" /></label>
             <TagInput key={`${editingLink.session.id}:${editingLink.tabIndex}`} value={linkTags} onChange={setLinkTags} />
             <label>Reminder <span>(optional)</span><input type="datetime-local" min={reminderMinDate} value={linkReminderAt} onChange={(e) => setLinkReminderAt(e.target.value)} /></label>
@@ -1626,7 +1629,7 @@ export default function App({ popup = false }) {
       )}
 
       {/* ── Toast ── */}
-      {toast && <Toast key={toast.id} message={toast.message} onDone={() => setToast(null)} />}
+      {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
     </div>
   );
 }

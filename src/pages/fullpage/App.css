@@ -2092,6 +2092,10 @@ body:has(.new-workspace-backdrop, .dialog-backdrop) {
    Toast
 ───────────────────────────────────────────── */
 .toast {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   position: fixed;
   bottom: 28px;
   left: 50%;
@@ -2105,10 +2109,24 @@ body:has(.new-workspace-backdrop, .dialog-backdrop) {
   font-weight: 500;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
   z-index: 60;
-  max-width: 480px;
+  width: max-content;
+  max-width: min(480px, calc(100vw - 28px));
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   animation: toast-up 0.2s ease-out;
+}
+
+.toast--error {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+:root[data-theme="dark"] .toast--error {
+  background: #3b1d24;
+  border-color: #b45360;
+  color: #fecaca;
 }
 
 @keyframes toast-up {
