@@ -1557,7 +1557,7 @@ export default function App({ popup = false }) {
 
       {/* ── New / Edit workspace modal ── */}
       {newWorkspaceOpen && (
-        <div className="new-workspace-backdrop" onClick={closeWorkspaceModal} role="presentation">
+        <div className="new-workspace-backdrop" role="presentation">
           <form
             className="new-workspace-dialog"
             noValidate
