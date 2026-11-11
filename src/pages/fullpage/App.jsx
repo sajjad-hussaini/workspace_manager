@@ -191,7 +191,7 @@ export default function App({ popup = false }) {
 
   const dueReminders = useMemo(() => {
     return activeSessions
-      .filter((s) => s.reminderAt && Date.parse(s.reminderAt) <= now)
+      .filter((s) => s.reminderAt && Date.parse(s.reminderAt) <= now && s.popupReminderDismissedAt !== s.reminderAt)
       .sort((a, b) => Date.parse(b.reminderAt) - Date.parse(a.reminderAt));
   }, [activeSessions, now]);
 
@@ -226,7 +226,7 @@ export default function App({ popup = false }) {
 
   async function dismissReminder(session) {
     try {
-      await persistSession({ ...session, reminderAt: "" });
+      await persistSession({ ...session, popupReminderDismissedAt: session.reminderAt });
       await refresh();
     } catch (error) {
       console.error("Failed to dismiss reminder:", error);

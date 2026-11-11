@@ -7,6 +7,7 @@ import "./BrowserWindowsCard.css";
 function WindowRow({ browserWindow, workspaces, saving, onSave }) {
   const [expanded, setExpanded] = useState(false);
   const [excluded, setExcluded] = useState(() => new Set());
+  const [saveMode, setSaveMode] = useState("new");
   const [targetId, setTargetId] = useState("");
   const selected = browserWindow.tabs.filter((tab) => !excluded.has(tab.id));
   const targetExists = !targetId || workspaces.some((workspace) => workspace.id === targetId);
@@ -46,14 +47,26 @@ function WindowRow({ browserWindow, workspaces, saving, onSave }) {
               <span title={tab.url}>{tab.title || tab.url}</span>
             </label>)}
           </div>
-          <label className="browser-window-destination">
-            Save to
-            <select value={targetExists ? targetId : ""} disabled={saving} onChange={(event) => setTargetId(event.target.value)}>
-              <option value="">New workspace…</option>
+          <div className="browser-window-destination">
+            <span className="browser-window-destination-label">Save to</span>
+            <button
+              type="button"
+              className={`browser-window-save-mode ${saveMode === "existing" ? "is-existing" : ""}`}
+              role="switch"
+              aria-label="Save to existing workspace"
+              aria-checked={saveMode === "existing"}
+              disabled={saving || !workspaces.length}
+              onClick={() => setSaveMode(saveMode === "existing" ? "new" : "existing")}
+            >
+              <span className="browser-window-save-mode-label">{saveMode === "existing" ? "Existing" : "New"}</span>
+              <span className="browser-window-save-mode-thumb" aria-hidden="true" />
+            </button>
+            {saveMode === "existing" && <select aria-label="Existing workspace" value={targetExists ? targetId : ""} disabled={saving} onChange={(event) => setTargetId(event.target.value)}>
+              <option value="" disabled>Select a workspace…</option>
               {workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.title}</option>)}
-            </select>
-          </label>
-          <button className="modern-browser-save-btn" type="button" disabled={saving || !selected.length} onClick={() => onSave({ windowId: browserWindow.id, tabIds: selected.map((tab) => tab.id), label: browserWindow.label }, targetExists ? targetId : "")}>
+            </select>}
+          </div>
+          <button className="modern-browser-save-btn" type="button" disabled={saving || !selected.length || (saveMode === "existing" && (!targetId || !targetExists))} onClick={() => onSave({ windowId: browserWindow.id, tabIds: selected.map((tab) => tab.id), label: browserWindow.label }, saveMode === "existing" && targetExists ? targetId : "")}>
             <Icon name="plus" /> {saving ? "Saving…" : `Save ${selected.length} selected tab${selected.length === 1 ? "" : "s"}`}
           </button>
         </> : <p className="browser-window-empty">No saveable tabs in this window.</p>}
