@@ -48,17 +48,19 @@ function WindowRow({ browserWindow, workspaces, saving, onSave }) {
             </label>)}
           </div>
           <div className="browser-window-destination">
-            <span className="browser-window-destination-label">Save to</span>
+            <div className="browser-window-destination-copy">
+              <span className="browser-window-destination-label">Save to workspace</span>
+              <span className="browser-window-destination-description">Save tabs directly without choosing a workspace.</span>
+            </div>
             <button
               type="button"
               className={`browser-window-save-mode ${saveMode === "existing" ? "is-existing" : ""}`}
               role="switch"
-              aria-label="Save to existing workspace"
+              aria-label="Choose an existing workspace"
               aria-checked={saveMode === "existing"}
               disabled={saving || !workspaces.length}
               onClick={() => setSaveMode(saveMode === "existing" ? "new" : "existing")}
             >
-              <span className="browser-window-save-mode-label">{saveMode === "existing" ? "Existing" : "New"}</span>
               <span className="browser-window-save-mode-thumb" aria-hidden="true" />
             </button>
             {saveMode === "existing" && <select aria-label="Existing workspace" value={targetExists ? targetId : ""} disabled={saving} onChange={(event) => setTargetId(event.target.value)}>
@@ -144,9 +146,6 @@ export default function BrowserWindowsCard({ workspaces, saving, onSaveCurrent, 
 
   return <>
     <div className="browser-windows-card-wrap">
-      <button className="browser-windows-badge" type="button" onClick={showWindows} aria-haspopup="dialog">
-        <Icon name="window" /> {detectedWindowsText}
-      </button>
     <div className="modern-summary-card is-browser">
       <div className="modern-browser-header">
         <strong>Current Window</strong>
@@ -158,7 +157,10 @@ export default function BrowserWindowsCard({ workspaces, saving, onSaveCurrent, 
         </div>
       </div>
       <div className="modern-browser-meta browser-windows-meta">
-        <span>{loading ? "Loading browser windows…" : error || `${currentTabs.length} tab${currentTabs.length === 1 ? "" : "s"} open · ${detectedWindowsText}`}</span>
+        {loading ? "Loading browser windows…" : error || <>
+          <span>{currentTabs.length} tab{currentTabs.length === 1 ? "" : "s"} open · </span>
+          <button className="browser-windows-meta-link" type="button" onClick={showWindows} aria-haspopup="dialog">{detectedWindowsText}</button>
+        </>}
       </div>
       <button className="modern-browser-save-btn" onClick={onSaveCurrent} disabled={saving || loading || !currentTabs.length} type="button">
         <Icon name="plus" /> {saving ? "Saving…" : "Save Current Window"}
