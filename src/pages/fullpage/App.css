@@ -643,7 +643,7 @@
 .modern-content {
   flex: 1;
   padding: 28px 36px 56px;
-  max-width: 1240px;
+  max-width: none;
   width: 100%;
 }
 
@@ -1128,6 +1128,9 @@
 }
 
 .modern-workspace-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1137,6 +1140,12 @@
   line-height: 12px;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.modern-workspace-detail-link .ui-icon {
+  width: 11px;
+  height: 11px;
+  flex-basis: 11px;
 }
 
 .modern-workspace-detail-link:hover,
@@ -2027,6 +2036,8 @@ body:has(.new-workspace-backdrop, .dialog-backdrop) {
   color: var(--text);
   font: inherit;
   font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 

@@ -1572,8 +1572,8 @@ export default function App({ popup = false }) {
               <button onClick={closeWorkspaceModal} type="button" aria-label="Close"><Icon name="close" /></button>
             </div>
             <label>Workspace name<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Design research" autoFocus /></label>
-            <TagInput value={tags} onChange={setTags} />
             <label>Note <span>(optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What is this workspace for?" rows="3" /></label>
+            <TagInput value={tags} onChange={setTags} />
             <label>Reminder <span>(optional)</span><input type="datetime-local" min={reminderMinDate} value={reminderAt} onChange={(e) => setReminderAt(e.target.value)} /></label>
             <div className="new-workspace-actions">
               <button className="new-workspace-cancel" onClick={closeWorkspaceModal} type="button">Cancel</button>

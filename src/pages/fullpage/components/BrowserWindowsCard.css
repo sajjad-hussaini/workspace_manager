@@ -8,9 +8,9 @@
   cursor: pointer;
 }
 
-.modern-summary-grid:has(> .browser-windows-card-wrap) {
+/* .modern-summary-grid:has(> .browser-windows-card-wrap) {
   padding-top: 24px;
-}
+} */
 
 .browser-windows-card-wrap {
   position: relative;

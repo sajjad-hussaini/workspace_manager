@@ -263,7 +263,7 @@ export default function WorkspaceCard({
         <div className="modern-ws-actions">
           {/* Split Open Button */}
           <div className="modern-open-action">
-            {onShowDetails && <button className="modern-workspace-detail-link" type="button" onClick={onShowDetails}>Workspace detail</button>}
+            {onShowDetails && <button className="modern-workspace-detail-link" type="button" onClick={onShowDetails}>Workspace detail <Icon name="arrowRight" /></button>}
             <div className="modern-split-btn-container" ref={openMenuRef}>
               <button
                 className="modern-split-main-btn"
