@@ -21,14 +21,20 @@ export async function getSessions() {
     chrome.storage.local.get(null)
   ]);
 
-  const sessions = [];
+  const sessionsById = new Map();
   for (const [key, value] of Object.entries(syncData)) {
-    if (key.startsWith(PREFIX)) sessions.push({ ...value, storageArea: "sync" });
+    if (key.startsWith(PREFIX)) sessionsById.set(value.id, { ...value, storageArea: "sync" });
   }
   for (const [key, value] of Object.entries(localData)) {
-    if (key.startsWith(PREFIX)) sessions.push({ ...value, storageArea: "local" });
+    if (!key.startsWith(PREFIX)) continue;
+    const existing = sessionsById.get(value.id);
+    const existingUpdatedAt = Date.parse(existing?.updatedAt || "") || 0;
+    const updatedAt = Date.parse(value.updatedAt || "") || 0;
+    if (!existing || updatedAt > existingUpdatedAt) {
+      sessionsById.set(value.id, { ...value, storageArea: "local" });
+    }
   }
-  return sessions;
+  return [...sessionsById.values()];
 }
 
 export async function persistSession(session) {

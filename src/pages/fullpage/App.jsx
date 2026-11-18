@@ -319,7 +319,7 @@ export default function App({ popup = false }) {
         );
       } else {
         const newSession = {
-          id: `sess_${Date.now()}`,
+          id: `sess_${crypto.randomUUID()}`,
           title: trimmedTitle,
           note: note.trim(),
           tags: parsedTags,
@@ -357,7 +357,7 @@ export default function App({ popup = false }) {
       }
       const uniqueTitle = getUniqueWorkspaceName("Current Browser", sessions);
       await persistSession({
-        id: `sess_${Date.now()}`,
+        id: `sess_${crypto.randomUUID()}`,
         title: uniqueTitle,
         note: "",
         tags: [],
@@ -699,7 +699,7 @@ export default function App({ popup = false }) {
 
     if (isEmptyWorkspace) {
       const newSession = {
-        id: `sess_${Date.now()}`,
+        id: `sess_${crypto.randomUUID()}`,
         title: nextTitle,
         note: note.trim(),
         tags: parsedTags,
@@ -732,7 +732,7 @@ export default function App({ popup = false }) {
   async function duplicateWorkspace(session) {
     const copy = {
       ...session,
-      id: `sess_${Date.now()}`,
+      id: `sess_${crypto.randomUUID()}`,
       title: getUniqueWorkspaceName(`${session.title} (Copy)`, sessions),
       tags: Array.isArray(session.tags) ? [...session.tags] : [],
       createdAt: new Date().toISOString()
