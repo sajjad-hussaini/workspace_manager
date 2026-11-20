@@ -15,7 +15,7 @@
   border-radius: 5px;
   background: transparent;
   color: var(--slate-500);
-  cursor: help;
+  cursor: pointer;
 }
 
 .tab-indicator .ui-icon { width: 14px; height: 14px; }
